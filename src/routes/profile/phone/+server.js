@@ -1,5 +1,5 @@
 // src/routes/api/user/phone/+server.js
-import  prisma  from "$lib/server/prisma";
+import  {prisma}  from "$lib/server/prisma";
 import { json } from "@sveltejs/kit";
 
 /** @type {import('./$types').RequestHandler} */

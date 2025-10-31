@@ -2,7 +2,6 @@
 
 import { prisma } from "$lib/server/prisma";
 import { env } from "$env/dynamic/private"; // ✅ dynamic import (safe)
-import { VITE_PUBLIC_BETTER_AUTH_URL } from "$env/static/public";
 
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -10,9 +9,9 @@ import { sveltekitCookies } from "better-auth/svelte-kit";
 import { getRequestEvent } from "$app/server";
 
 export const auth = betterAuth({
-  secret: env.BETTER_AUTH_SECRET || "https://lazona-ke.netlify.app", // ✅ access via env object
-  baseUrl: VITE_PUBLIC_BETTER_AUTH_URL,
-  database: prismaAdapter(prisma, { provider: "sqlite" }),
+  secret: env.BETTER_AUTH_SECRET,  // ✅ access via env object
+  baseUrl: env.BETTER_AUTH_URL || "https://kllarify.netlify.app",
+  database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
