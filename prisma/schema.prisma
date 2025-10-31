@@ -1,0 +1,226 @@
+// Prisma schema for Klarify with Better-Auth compatibility
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// BETTER-AUTH COMPATIBLE TABLES
+// ============================================
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Better-Auth fields
+  role          String?   // Better-Auth uses string, not enum
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+
+  // Our custom fields
+  phone         String?   @unique
+
+  // Relations
+  sessions      Session[]
+  accounts      Account[]
+  purchases     Purchase[]
+  reviews       Review[]
+
+  @@index([email])
+  @@index([phone])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+// ============================================
+// PRODUCTS & CONTENT
+// ============================================
+
+model Product {
+  id          String      @id @default(cuid())
+  title       String
+  slug        String      @unique
+  description String
+  author      String
+  narrator    String?
+  duration    Int?
+  pageCount   Int?
+  language    String      @default("en")
+
+  // Pricing
+  pdfPrice    Float       @default(50)
+  audioPrice  Float       @default(99)
+  bundlePrice Float?
+
+  // R2 Storage
+  r2BasePath  String
+  coverImage  String
+  pdfFile     String?
+  audioFile   String?
+  samplePdf   String?
+  sampleAudio String?
+
+  // Metadata
+  publishedAt DateTime?
+  featured    Boolean     @default(false)
+  active      Boolean     @default(true)
+  downloads   Int         @default(0)
+  rating      Float       @default(0)
+  reviewCount Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  type        ProductType @default(EBOOK)
+  categories  Category[]
+  purchases   Purchase[]
+  reviews     Review[]
+
+  @@index([slug])
+  @@index([type])
+  @@index([featured])
+}
+
+enum ProductType {
+  EBOOK
+  AUDIOBOOK
+  MAGAZINE
+  BUNDLE
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  icon     String?
+  products Product[]
+
+  @@index([slug])
+}
+
+// ============================================
+// PURCHASES & DOWNLOADS
+// ============================================
+
+model Purchase {
+  id              String         @id @default(cuid())
+  userId          String
+  productId       String
+  format          PurchaseFormat
+  amount          Float
+  currency        String         @default("KES")
+  paystackRef     String         @unique
+  paymentStatus   PaymentStatus  @default(PENDING)
+  downloadToken   String         @unique @default(cuid())
+  expiresAt       DateTime
+  downloadCount   Int            @default(0)
+  maxDownloads    Int            @default(3)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user            User           @relation(fields: [userId], references: [id])
+  product         Product        @relation(fields: [productId], references: [id])
+  downloads       Download[]
+
+  @@index([userId])
+  @@index([downloadToken])
+  @@index([paystackRef])
+}
+
+model Download {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  ipAddress   String
+  userAgent   String
+  downloadedAt DateTime @default(now())
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+}
+
+enum PurchaseFormat {
+  PDF
+  AUDIO
+  BUNDLE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ============================================
+// REVIEWS
+// ============================================
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([productId])
+}

@@ -1,0 +1,2 @@
+<div>
+product catalog</div>

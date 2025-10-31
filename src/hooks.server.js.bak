@@ -1,0 +1,66 @@
+/**
+ * @fileoverview Server hooks - handles auth session with Better-Auth SvelteKit handler
+ */
+
+import { svelteKitHandler } from "better-auth/svelte-kit";
+import { auth } from "$lib/server/auth.js";
+import { redirect } from "@sveltejs/kit";
+
+const PROTECTED_ROUTES = [
+  "/admin",
+  "/my-library",
+  "/account",
+  "/complete-profile",
+];
+
+/**
+ * @type {import('@sveltejs/kit').Handle}
+ */
+export const handle = async ({ event, resolve }) => {
+  // 1. Let Better-Auth handle cookies and authentication FIRST
+  // This is crucial - it must run before we try to get the session
+  const authResponse = await svelteKitHandler({
+    event,
+    resolve,
+    auth,
+  });
+
+  // 2. NOW get the session (after cookies are properly set)
+  const session = await auth.api.getSession({
+    headers: event.request.headers,
+  });
+
+  // 3. Populate locals with user and session data
+  if (session?.user) {
+    event.locals.user = session.user;
+    event.locals.session = session.session;
+  } else {
+    event.locals.user = null;
+    event.locals.session = null;
+  }
+
+  // 4. Handle protected routes
+  const isProtected = PROTECTED_ROUTES.some((route) =>
+    event.url.pathname.startsWith(route),
+  );
+
+  if (isProtected && !session?.user) {
+    throw redirect(303, "/login");
+  }
+
+  // 5. Redirect logged-in users away from auth pages
+  if (
+    (event.url.pathname === "/login" || event.url.pathname === "/signup") &&
+    session?.user
+  ) {
+    throw redirect(303, "/");
+  }
+
+  // 6. Cache control for protected routes
+  if (isProtected) {
+    authResponse.headers.set("Cache-Control", "no-store, max-age=0");
+    authResponse.headers.set("Pragma", "no-cache");
+  }
+
+  return authResponse;
+};
