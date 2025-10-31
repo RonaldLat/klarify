@@ -12,7 +12,7 @@
 </svelte:head>
 
 <div class="min-h-screen bg-background">
-	<Header user={data?.user} />
+	<Header user={data?.user} cartCount={data?.cartCount || 0} />
 	
 	<main>
 		{@render children()}

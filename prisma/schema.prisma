@@ -36,6 +36,7 @@ model User {
   accounts      Account[]
   purchases     Purchase[]
   reviews       Review[]
+  cartItems     CartItem[]  // Added cart relation
 
   @@index([email])
   @@index([phone])
@@ -90,6 +91,25 @@ model Verification {
 }
 
 // ============================================
+// SHOPPING CART
+// ============================================
+
+model CartItem {
+  id        String         @id @default(cuid())
+  userId    String
+  productId String
+  format    PurchaseFormat
+  addedAt   DateTime       @default(now())
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId, format])
+  @@index([userId])
+  @@map("cart_item")
+}
+
+// ============================================
 // PRODUCTS & CONTENT
 // ============================================
 
@@ -131,6 +151,7 @@ model Product {
   categories  Category[]
   purchases   Purchase[]
   reviews     Review[]
+  cartItems   CartItem[]  // Added cart relation
 
   @@index([slug])
   @@index([type])
