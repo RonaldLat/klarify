@@ -1,7 +1,8 @@
 <script>
 	import { invalidateAll } from "$app/navigation";
+  import {ShoppingCart} from '@lucide/svelte'
 	
-	let { user = null } = $props();
+	let { user = null, cartCount = 0 } = $props();
 	
 	let showUserMenu = $state(false);
 	let loggingOut = $state(false);
@@ -23,7 +24,6 @@
 			showUserMenu = false;
 		}
 	}
-  console.log(user)
 </script>
 
 <svelte:window onclick={handleClickOutside} />
@@ -86,6 +86,16 @@
 			<!-- Right Side Actions -->
 			<div class="flex items-center gap-4">
 				{#if user}
+					<!-- Cart Icon -->
+					<a href="/cart" class="relative p-2 hover:bg-accent rounded-md transition-colors">
+						<ShoppingCart />
+						{#if cartCount > 0}
+							<span class="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center justify-center">
+								{cartCount}
+							</span>
+						{/if}
+					</a>
+
 					<!-- User Info & Menu -->
 					<div class="relative user-menu">
 						<button
