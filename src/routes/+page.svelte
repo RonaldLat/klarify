@@ -1,6 +1,6 @@
 <script>
 	let { data } = $props();
-  console.log('page', data)
+  console.log('page', data.user.role)
 </script>
 
 <div class="bg-background">
