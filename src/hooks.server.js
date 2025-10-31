@@ -60,6 +60,7 @@ const sessionHandle = async ({ event, resolve }) => {
             banned: true,
             createdAt: true,
             updatedAt: true,
+            reviews: true
           },
         });
 
@@ -114,9 +115,7 @@ const authGuardHandle = async ({ event, resolve }) => {
   // Check admin routes
   const isAdminRoute = ADMIN_ROUTES.some((route) =>
     url.pathname.startsWith(route),
-  );
-
-  if (isAdminRoute) {
+  ); if (isAdminRoute) {
     // If we don't have role yet (basic session), fetch it now
     if (locals.user && locals.user.role === null) {
       const fullUser = await prisma.user.findUnique({

@@ -23,6 +23,7 @@
 			showUserMenu = false;
 		}
 	}
+  console.log(user)
 </script>
 
 <svelte:window onclick={handleClickOutside} />
