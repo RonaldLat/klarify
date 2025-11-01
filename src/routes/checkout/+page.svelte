@@ -1,6 +1,7 @@
 <script>
 	import { enhance } from "$app/forms";
 	import { goto } from "$app/navigation";
+	import { onMount } from "svelte";
 
 	let { data } = $props();
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
@@ -8,6 +9,20 @@
 	let phone = $state(data.user.phone ? formatPhoneForDisplay(data.user.phone) : "");
 	let processing = $state(false);
 	let error = $state("");
+	let Paystack = $state(null);
+	let paystackPopup = $state(null);
+
+	// Load Paystack only on client side
+	onMount(async () => {
+		try {
+			const PaystackModule = await import('@paystack/inline-js');
+			Paystack = PaystackModule.default;
+			paystackPopup = new Paystack();
+		} catch (err) {
+			console.error('Failed to load Paystack:', err);
+			error = "Payment system failed to load. Please refresh the page.";
+		}
+	});
 
 	/**
 	 * Format phone for display (allows flexible input)
@@ -70,40 +85,58 @@
 	};
 
 	/**
-	 * Open Paystack payment popup using InlineJS
+	 * Open Paystack payment popup using InlineJS NPM package
 	 */
 	function openPaystackPopup(paymentData) {
-		if (!window.PaystackPop) {
-			error = "Payment system not loaded. Please refresh the page.";
+		if (!paystackPopup) {
+			error = "Payment system not loaded. Please wait or refresh the page.";
 			return;
 		}
 
-		const popup = new window.PaystackPop();
-		
-		popup.newTransaction({
-			key: data.paystackPublicKey,
-			email: data.user.email,
-			amount: Math.round(data.cart.total * 100), // Amount in kobo (cents)
-			currency: 'KES',
-			ref: paymentData.reference,
-			
-			onSuccess: (transaction) => {
-				// Payment successful - redirect to verification
-				console.log('Payment successful:', transaction);
-				goto(`/checkout/verify?reference=${transaction.reference}`);
-			},
-			
-			onCancel: () => {
-				error = "Payment was cancelled";
-				processing = false;
-			},
-
-			onError: (error) => {
-				console.error('Payment error:', error);
-				error = error.message || "Payment failed";
-				processing = false;
-			}
-		});
+		try {
+			paystackPopup.checkout({
+				key: data.paystackPublicKey,
+				email: data.user.email,
+				amount: Math.round(data.cart.total * 100), // Amount in kobo (cents)
+				currency: 'KES',
+				ref: paymentData.reference,
+				metadata: {
+					custom_fields: [
+						{
+							display_name: "Customer Name",
+							variable_name: "customer_name",
+							value: data.user.name
+						},
+						{
+							display_name: "Phone Number",
+							variable_name: "phone_number", 
+							value: normalizePhone(phone)
+						}
+					]
+				},
+				onSuccess: (transaction) => {
+					// Payment successful - redirect to verification
+					console.log('Payment successful:', transaction);
+					goto(`/checkout/verify?reference=${transaction.reference}`);
+				},
+				onLoad: (response) => {
+					console.log('Payment popup loaded:', response);
+				},
+				onCancel: () => {
+					error = "Payment was cancelled";
+					processing = false;
+				},
+				onError: (error) => {
+					console.error('Payment error:', error);
+					error = error.message || "Payment failed";
+					processing = false;
+				}
+			});
+		} catch (err) {
+			console.error('Paystack checkout error:', err);
+			error = "Payment system error. Please try again.";
+			processing = false;
+		}
 	}
 
 	function getItemPrice(item) {
@@ -130,12 +163,7 @@
 	}
 </script>
 
-<svelte:head>
-	<title>Checkout - Klarify</title>
-	<!-- Paystack Inline JS from CDN -->
-	<script src="https://js.paystack.co/v1/inline.js"></script>
-</svelte:head>
-
+<!-- Rest of the template remains the same -->
 <div class="min-h-screen bg-background py-8 md:py-12">
 	<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 		<!-- Header -->

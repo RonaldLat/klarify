@@ -42,7 +42,7 @@ export const actions = {
     try {
       const formData = await request.formData();
       const cartItemIds = formData.getAll("cartItemIds");
-      const phone = formData.get("phone"); // Get phone from form
+      const phone = formData.get("phone");
 
       if (cartItemIds.length === 0) {
         return fail(400, { error: "No items to checkout" });
@@ -99,16 +99,6 @@ export const actions = {
           cart_item_ids: cartItemIds,
           customer_name: locals.user.name,
           customer_phone: phone,
-          // Store cart items info for creating purchases later
-          items: cartItems.map(item => ({
-            productId: item.productId,
-            format: item.format,
-            amount: item.format === "BUNDLE"
-              ? item.product.bundlePrice || 0
-              : item.format === "AUDIO"
-                ? item.product.audioPrice
-                : item.product.pdfPrice,
-          })),
         },
       });
 
@@ -119,8 +109,8 @@ export const actions = {
         });
       }
 
-      // Now create purchases with the actual Paystack reference
-      const purchases = await Promise.all(
+      // Create purchases in a transaction
+      const purchases = await prisma.$transaction(
         cartItems.map((item) =>
           prisma.purchase.create({
             data: {
@@ -134,13 +124,21 @@ export const actions = {
                     ? item.product.audioPrice
                     : item.product.pdfPrice,
               currency: "KES",
-              paystackRef: paymentResult.data.reference, // Use actual reference
+              paystackRef: paymentResult.data.reference, // Same reference for all
               paymentStatus: "PENDING",
               expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
             },
-          }),
-        ),
+          })
+        )
       );
+
+      // Delete cart items after successful purchase creation
+      await prisma.cartItem.deleteMany({
+        where: {
+          id: { in: cartItemIds },
+          userId: locals.user.id,
+        },
+      });
 
       // Return payment data for Paystack Inline popup
       return {
@@ -148,10 +146,18 @@ export const actions = {
         reference: paymentResult.data.reference,
         access_code: paymentResult.data.access_code,
         authorization_url: paymentResult.data.authorization_url,
-        purchase_ids: purchases.map(p => p.id), // For verification later
+        purchase_ids: purchases.map(p => p.id),
       };
     } catch (error) {
       console.error("Checkout error:", error);
+      
+      // Handle unique constraint error specifically
+      if (error.code === 'P2002' && error.meta?.target?.includes('paystackRef')) {
+        return fail(500, { 
+          error: "Payment already processed. Please check your purchases." 
+        });
+      }
+      
       return fail(500, { error: "Checkout failed" });
     }
   },
