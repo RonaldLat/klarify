@@ -30,8 +30,25 @@ export async function load({ url, locals }) {
 
     // Get metadata
     const metadata = paymentResult.data.metadata;
-    const purchaseIds = metadata.purchase_ids;
     const cartItemIds = metadata.cart_item_ids;
+
+    // Get purchases by reference (since we used the actual reference when creating)
+    const purchases = await prisma.purchase.findMany({
+      where: {
+        paystackRef: reference,
+        userId: locals.user.id,
+      },
+      include: {
+        product: true,
+      },
+    });
+
+    if (purchases.length === 0) {
+      console.error("No purchases found for reference:", reference);
+      throw redirect(303, "/checkout?error=purchases_not_found");
+    }
+
+    const purchaseIds = purchases.map((p) => p.id);
 
     // Update purchases to COMPLETED
     await prisma.purchase.updateMany({
@@ -57,16 +74,6 @@ export async function load({ url, locals }) {
       // Fallback: clear entire cart
       await clearCart(locals.user.id);
     }
-
-    // Get completed purchases with products
-    const purchases = await prisma.purchase.findMany({
-      where: {
-        id: { in: purchaseIds },
-      },
-      include: {
-        product: true,
-      },
-    });
 
     return {
       success: true,

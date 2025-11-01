@@ -29,7 +29,8 @@ model User {
   banExpires    DateTime?
 
   // Our custom fields
-  phone         String?   @unique
+  // phone         String?   @unique
+  phone         String?   
 
   // Relations
   sessions      Session[]
@@ -186,7 +187,8 @@ model Purchase {
   format          PurchaseFormat
   amount          Float
   currency        String         @default("KES")
-  paystackRef     String         @unique
+  // paystackRef     String         @unique
+  paystackRef     String        
   paymentStatus   PaymentStatus  @default(PENDING)
   downloadToken   String         @unique @default(cuid())
   expiresAt       DateTime

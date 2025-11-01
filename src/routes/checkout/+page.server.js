@@ -5,6 +5,7 @@ import { redirect, fail } from "@sveltejs/kit";
 import { getCart } from "$lib/server/services/cart.js";
 import { initializePayment } from "$lib/server/services/payment.js";
 import { prisma } from "$lib/server/prisma.js";
+import { PUBLIC_PAYSTACK_PUBLIC_KEY } from "$env/static/public";
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals }) {
@@ -24,6 +25,7 @@ export async function load({ locals }) {
   return {
     cart,
     user: locals.user,
+    paystackPublicKey: PUBLIC_PAYSTACK_PUBLIC_KEY, // Pass to frontend
   };
 }
 
@@ -46,11 +48,11 @@ export const actions = {
         return fail(400, { error: "No items to checkout" });
       }
 
-      // Validate phone number
+      // Validate phone number (should already be normalized to 254XXXXXXXXX)
       const phoneRegex = /^254[17]\d{8}$/;
       if (!phone || !phoneRegex.test(phone)) {
-        return fail(400, {
-          error: "Valid phone number required (format: 254712345678)",
+        return fail(400, { 
+          error: "Invalid phone number format. Please use a valid Kenyan number." 
         });
       }
 
@@ -88,7 +90,36 @@ export const actions = {
         return sum + price;
       }, 0);
 
-      // Create purchases in database (PENDING status)
+      // Initialize payment with Paystack FIRST
+      const paymentResult = await initializePayment({
+        email: locals.user.email,
+        amount: total,
+        metadata: {
+          user_id: locals.user.id,
+          cart_item_ids: cartItemIds,
+          customer_name: locals.user.name,
+          customer_phone: phone,
+          // Store cart items info for creating purchases later
+          items: cartItems.map(item => ({
+            productId: item.productId,
+            format: item.format,
+            amount: item.format === "BUNDLE"
+              ? item.product.bundlePrice || 0
+              : item.format === "AUDIO"
+                ? item.product.audioPrice
+                : item.product.pdfPrice,
+          })),
+        },
+      });
+
+      if (!paymentResult.success) {
+        console.error("Payment initialization failed:", paymentResult.error);
+        return fail(500, {
+          error: paymentResult.error || "Payment initialization failed",
+        });
+      }
+
+      // Now create purchases with the actual Paystack reference
       const purchases = await Promise.all(
         cartItems.map((item) =>
           prisma.purchase.create({
@@ -103,7 +134,7 @@ export const actions = {
                     ? item.product.audioPrice
                     : item.product.pdfPrice,
               currency: "KES",
-              paystackRef: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              paystackRef: paymentResult.data.reference, // Use actual reference
               paymentStatus: "PENDING",
               expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
             },
@@ -111,49 +142,13 @@ export const actions = {
         ),
       );
 
-      // Initialize payment with Paystack
-      const paymentResult = await initializePayment({
-        email: locals.user.email,
-        amount: total,
-        metadata: {
-          purchase_ids: purchases.map((p) => p.id),
-          user_id: locals.user.id,
-          cart_item_ids: cartItemIds,
-          customer_name: locals.user.name,
-          customer_phone: phone,
-        },
-      });
-
-      if (!paymentResult.success) {
-        console.error("Payment initialization failed:", paymentResult.error);
-
-        // Rollback: Delete pending purchases
-        await prisma.purchase.deleteMany({
-          where: {
-            id: { in: purchases.map((p) => p.id) },
-          },
-        });
-
-        return fail(500, {
-          error: paymentResult.error || "Payment initialization failed",
-        });
-      }
-
-      // Update purchases with actual Paystack reference
-      await prisma.purchase.updateMany({
-        where: {
-          id: { in: purchases.map((p) => p.id) },
-        },
-        data: {
-          paystackRef: paymentResult.data.reference,
-        },
-      });
-
-      // Return authorization URL for redirect
+      // Return payment data for Paystack Inline popup
       return {
         success: true,
-        authorization_url: paymentResult.data.authorization_url,
         reference: paymentResult.data.reference,
+        access_code: paymentResult.data.access_code,
+        authorization_url: paymentResult.data.authorization_url,
+        purchase_ids: purchases.map(p => p.id), // For verification later
       };
     } catch (error) {
       console.error("Checkout error:", error);
