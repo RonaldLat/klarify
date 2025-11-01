@@ -49,21 +49,6 @@ export const actions = {
       }
 
       // Validate phone number (should already be normalized to 254XXXXXXXXX)
-      const phoneRegex = /^254[17]\d{8}$/;
-      if (!phone || !phoneRegex.test(phone)) {
-        return fail(400, { 
-          error: "Invalid phone number format. Please use a valid Kenyan number." 
-        });
-      }
-
-      // Update user's phone if different
-      if (phone !== locals.user.phone) {
-        await prisma.user.update({
-          where: { id: locals.user.id },
-          data: { phone },
-        });
-      }
-
       // Get cart items with products
       const cartItems = await prisma.cartItem.findMany({
         where: {

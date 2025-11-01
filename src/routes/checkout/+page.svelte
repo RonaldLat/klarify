@@ -6,7 +6,6 @@
 	let { data } = $props();
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
 	
-	let phone = $state(data.user.phone ? formatPhoneForDisplay(data.user.phone) : "");
 	let processing = $state(false);
 	let error = $state("");
 	let Paystack = $state(null);
@@ -23,50 +22,6 @@
 			error = "Payment system failed to load. Please refresh the page.";
 		}
 	});
-
-	/**
-	 * Format phone for display (allows flexible input)
-	 */
-	function formatPhoneForDisplay(phoneNumber) {
-		if (!phoneNumber) return "";
-		// If starts with +254, keep it
-		if (phoneNumber.startsWith("+254")) return phoneNumber;
-		// If starts with 254, add +
-		if (phoneNumber.startsWith("254")) return "+" + phoneNumber;
-		return phoneNumber;
-	}
-
-	/**
-	 * Normalize phone to 254XXXXXXXXX format for backend
-	 */
-	function normalizePhone(phoneInput) {
-		if (!phoneInput) return "";
-		
-		// Remove all spaces, dashes, parentheses
-		let cleaned = phoneInput.replace(/[\s\-\(\)]/g, "");
-		
-		// Remove leading + if present
-		if (cleaned.startsWith("+")) {
-			cleaned = cleaned.substring(1);
-		}
-		
-		// If starts with 254, it's already normalized
-		if (cleaned.startsWith("254")) {
-			return cleaned;
-		}
-		
-		// If starts with 0, replace with 254
-		if (cleaned.startsWith("0")) {
-			return "254" + cleaned.substring(1);
-		}
-		
-		// If starts with 7 or 1 (just the number), add 254
-		if (cleaned.startsWith("7") || cleaned.startsWith("1")) {
-			return "254" + cleaned;
-		}
-		
-		return cleaned;
-	}
 
 	/**
 	 * Initialize Paystack payment and open popup
@@ -97,38 +52,27 @@
 			paystackPopup.checkout({
 				key: data.paystackPublicKey,
 				email: data.user.email,
-				amount: Math.round(data.cart.total * 100), // Amount in kobo (cents)
+				amount: Math.round(data.cart.total * 100),
 				currency: 'KES',
 				ref: paymentData.reference,
-				metadata: {
-					custom_fields: [
-						{
-							display_name: "Customer Name",
-							variable_name: "customer_name",
-							value: data.user.name
-						},
-						{
-							display_name: "Phone Number",
-							variable_name: "phone_number", 
-							value: normalizePhone(phone)
-						}
-					]
-				},
+				
 				onSuccess: (transaction) => {
-					// Payment successful - redirect to verification
 					console.log('Payment successful:', transaction);
 					goto(`/checkout/verify?reference=${transaction.reference}`);
 				},
+				
 				onLoad: (response) => {
 					console.log('Payment popup loaded:', response);
 				},
+				
 				onCancel: () => {
 					error = "Payment was cancelled";
 					processing = false;
 				},
-				onError: (error) => {
-					console.error('Payment error:', error);
-					error = error.message || "Payment failed";
+				
+				onError: (err) => {
+					console.error('Payment error:', err);
+					error = err.message || "Payment failed";
 					processing = false;
 				}
 			});
@@ -146,24 +90,12 @@
 		if (item.format === "AUDIO") return item.product.audioPrice;
 		return item.product.pdfPrice;
 	}
-
-	function validatePhone() {
-		const normalized = normalizePhone(phone);
-		
-		// Must be 254 followed by 7 or 1, then 8 more digits (total 12)
-		const phoneRegex = /^254[17]\d{8}$/;
-		
-		if (!phoneRegex.test(normalized)) {
-			error = "Invalid phone number. Valid formats:\n+254712345678, 254712345678, 0712345678, or 712345678";
-			return false;
-		}
-		
-		error = "";
-		return true;
-	}
 </script>
 
-<!-- Rest of the template remains the same -->
+<svelte:head>
+	<title>Checkout - Klarify</title>
+</svelte:head>
+
 <div class="min-h-screen bg-background py-8 md:py-12">
 	<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 		<!-- Header -->
@@ -175,10 +107,10 @@
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 			<!-- Order Items -->
 			<div class="lg:col-span-2 space-y-6">
-				<!-- Customer Info & Phone Number -->
+				<!-- Customer Info -->
 				<div class="bg-card border border-border rounded-lg p-6">
 					<h2 class="text-xl font-semibold text-foreground mb-4">Customer Information</h2>
-					<div class="space-y-4">
+					<div class="space-y-3">
 						<div class="flex justify-between">
 							<span class="text-muted-foreground">Name:</span>
 							<span class="text-foreground font-medium">{data.user.name}</span>
@@ -187,37 +119,11 @@
 							<span class="text-muted-foreground">Email:</span>
 							<span class="text-foreground font-medium">{data.user.email}</span>
 						</div>
-						
-						<!-- Phone Number Input (MANDATORY & PROMINENT) -->
-						<div class="border-t border-border pt-4">
-							<label for="phone" class="block text-base font-semibold text-foreground mb-2">
-								M-Pesa Phone Number <span class="text-destructive">*</span>
-							</label>
-							<input
-								id="phone"
-								type="tel"
-								bind:value={phone}
-								placeholder="+254712345678 or 0712345678"
-								class="w-full px-4 py-3 rounded-md border-2 border-input bg-background text-foreground text-base
-									focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-								oninput={() => error = ""}
-								required
-							/>
-							<div class="mt-2 space-y-1">
-								<p class="text-sm text-muted-foreground">
-									📱 Accepted formats:
-								</p>
-								<ul class="text-xs text-muted-foreground ml-4 space-y-0.5">
-									<li>• <span class="font-mono">+254712345678</span> (with +)</li>
-									<li>• <span class="font-mono">254712345678</span> (without +)</li>
-									<li>• <span class="font-mono">0712345678</span> (starts with 0)</li>
-									<li>• <span class="font-mono">712345678</span> (without prefix)</li>
-								</ul>
-								<p class="text-xs text-muted-foreground mt-1">
-									Supports Safaricom (07...) and Airtel (01...)
-								</p>
-							</div>
-						</div>
+					</div>
+					<div class="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+						<p class="text-sm text-muted-foreground">
+							📱 You'll enter your M-Pesa number in the Paystack payment window
+						</p>
 					</div>
 				</div>
 
@@ -287,7 +193,7 @@
 
 					<!-- Error Message -->
 					{#if error}
-						<div class="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded whitespace-pre-line">
+						<div class="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded">
 							{error}
 						</div>
 					{/if}
@@ -297,11 +203,7 @@
 						method="POST" 
 						action="?/initiate" 
 						use:enhance={handleCheckout}
-						onsubmit={(e) => {
-							if (!validatePhone()) {
-								e.preventDefault();
-								return false;
-							}
+						onsubmit={() => {
 							processing = true;
 							error = "";
 						}}
@@ -310,13 +212,10 @@
 						{#each data.cart.items as item}
 							<input type="hidden" name="cartItemIds" value={item.id} />
 						{/each}
-						
-						<!-- Hidden normalized phone number -->
-						<input type="hidden" name="phone" value={normalizePhone(phone)} />
 
 						<button
 							type="submit"
-							disabled={processing || !phone || phone.length < 9}
+							disabled={processing}
 							class="w-full px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3 text-base"
 						>
 							{processing ? "Processing..." : `💳 Pay KSh ${data.cart.total}`}

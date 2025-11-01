@@ -1,88 +1,140 @@
 /**
- * @fileoverview Payment verification after Paystack redirect
+ * @fileoverview Checkout page - server load and payment processing
  */
-import { redirect } from "@sveltejs/kit";
+import { redirect, fail } from "@sveltejs/kit";
+import { getCart } from "$lib/server/services/cart.js";
+import { initializePayment } from "$lib/server/services/payment.js";
 import { prisma } from "$lib/server/prisma.js";
-import { clearCart } from "$lib/server/services/cart.js";
-import { verifyPayment } from "$lib/server/services/payment.js";
+import { PUBLIC_PAYSTACK_PUBLIC_KEY } from "$env/static/public";
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ url, locals }) {
+export async function load({ locals }) {
   // Require authentication
   if (!locals.user) {
     throw redirect(303, "/login");
   }
 
-  const reference = url.searchParams.get("reference");
+  // Get cart
+  const cart = await getCart(locals.user.id);
 
-  if (!reference) {
-    throw redirect(303, "/checkout?error=no_reference");
+  // Redirect if cart is empty
+  if (cart.items.length === 0) {
+    throw redirect(303, "/cart");
   }
 
-  try {
-    // Verify payment with Paystack
-    const paymentResult = await verifyPayment(reference);
+  return {
+    cart,
+    user: locals.user,
+    paystackPublicKey: PUBLIC_PAYSTACK_PUBLIC_KEY,
+  };
+}
 
-    if (!paymentResult.success) {
-      console.error("Payment verification failed:", paymentResult.error);
-      throw redirect(303, "/checkout?error=payment_failed");
+/** @type {import('./$types').Actions} */
+export const actions = {
+  /**
+   * Initialize Paystack payment
+   */
+  initiate: async ({ request, locals }) => {
+    if (!locals.user) {
+      return fail(401, { error: "Unauthorized" });
     }
 
-    // Get metadata
-    const metadata = paymentResult.data.metadata;
-    const cartItemIds = metadata.cart_item_ids;
+    try {
+      const formData = await request.formData();
+      const cartItemIds = formData.getAll("cartItemIds");
 
-    // Get purchases by reference (since we used the actual reference when creating)
-    const purchases = await prisma.purchase.findMany({
-      where: {
-        paystackRef: reference,
-        userId: locals.user.id,
-      },
-      include: {
-        product: true,
-      },
-    });
+      if (cartItemIds.length === 0) {
+        return fail(400, { error: "No items to checkout" });
+      }
 
-    if (purchases.length === 0) {
-      console.error("No purchases found for reference:", reference);
-      throw redirect(303, "/checkout?error=purchases_not_found");
-    }
-
-    const purchaseIds = purchases.map((p) => p.id);
-
-    // Update purchases to COMPLETED
-    await prisma.purchase.updateMany({
-      where: {
-        id: { in: purchaseIds },
-        userId: locals.user.id,
-      },
-      data: {
-        paymentStatus: "COMPLETED",
-        paystackRef: reference,
-      },
-    });
-
-    // Clear cart items
-    if (cartItemIds && cartItemIds.length > 0) {
-      await prisma.cartItem.deleteMany({
+      // Get cart items with products
+      const cartItems = await prisma.cartItem.findMany({
         where: {
           id: { in: cartItemIds },
           userId: locals.user.id,
         },
+        include: {
+          product: true,
+        },
       });
-    } else {
-      // Fallback: clear entire cart
-      await clearCart(locals.user.id);
-    }
 
-    return {
-      success: true,
-      purchases,
-      reference,
-      amount: paymentResult.data.amount, // Already converted from kobo
-    };
-  } catch (error) {
-    console.error("Verification error:", error);
-    throw redirect(303, "/checkout?error=verification_failed");
-  }
-}
+      if (cartItems.length === 0) {
+        return fail(400, { error: "Cart items not found" });
+      }
+
+      // Calculate total
+      const total = cartItems.reduce((sum, item) => {
+        const price =
+          item.format === "BUNDLE"
+            ? item.product.bundlePrice || 0
+            : item.format === "AUDIO"
+              ? item.product.audioPrice
+              : item.product.pdfPrice;
+        return sum + price;
+      }, 0);
+
+      // Initialize payment with Paystack FIRST
+      const paymentResult = await initializePayment({
+        email: locals.user.email,
+        amount: total,
+        metadata: {
+          user_id: locals.user.id,
+          cart_item_ids: cartItemIds,
+          customer_name: locals.user.name,
+        },
+      });
+
+      if (!paymentResult.success) {
+        console.error("Payment initialization failed:", paymentResult.error);
+        return fail(500, {
+          error: paymentResult.error || "Payment initialization failed",
+        });
+      }
+
+      // Create purchases in a transaction
+      const purchases = await prisma.$transaction(
+        cartItems.map((item) =>
+          prisma.purchase.create({
+            data: {
+              userId: locals.user.id,
+              productId: item.productId,
+              format: item.format,
+              amount:
+                item.format === "BUNDLE"
+                  ? item.product.bundlePrice || 0
+                  : item.format === "AUDIO"
+                    ? item.product.audioPrice
+                    : item.product.pdfPrice,
+              currency: "KES",
+              paystackRef: paymentResult.data.reference,
+              paymentStatus: "PENDING",
+              expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
+            },
+          }),
+        ),
+      );
+
+      // Return payment data for Paystack Inline popup
+      return {
+        success: true,
+        reference: paymentResult.data.reference,
+        access_code: paymentResult.data.access_code,
+        authorization_url: paymentResult.data.authorization_url,
+        purchase_ids: purchases.map((p) => p.id),
+      };
+    } catch (error) {
+      console.error("Checkout error:", error);
+
+      if (
+        error.code === "P2002" &&
+        error.meta?.target?.includes("paystackRef")
+      ) {
+        return fail(500, {
+          error: "Payment already processed. Please check your purchases.",
+        });
+      }
+
+      return fail(500, { error: "Checkout failed" });
+    }
+  },
+};
