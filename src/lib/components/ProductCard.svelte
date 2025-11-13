@@ -15,7 +15,7 @@
 
 <a
 	href="/products/{product.slug}"
-	class="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-all"
+	class="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-all flex flex-col h-full"
 >
 	<!-- Cover Image -->
 	<div class="aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden">
@@ -23,8 +23,7 @@
 			<img 
 				src={publicUrl + product.coverImage} 
 				alt="{product.title} cover"
-				class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-
+				class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
 			/>
 		{:else}
 			<svg class="w-16 h-16 text-muted-foreground opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,10 +32,10 @@
 		{/if}
 	</div>
 
-	<div class="p-4">
+	<div class="p-4 flex flex-col flex-grow">
 		<!-- Featured Badge -->
 		{#if product.featured}
-			<span class="inline-block px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded mb-2">
+			<span class="inline-flex px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded mb-2 w-fit">
 				⭐ Featured
 			</span>
 		{/if}
@@ -63,9 +62,11 @@
 			{/if}
 		</div>
 
-		<!-- Price -->
-		<div class="flex items-center justify-between">
+		<!-- Spacer to push price to bottom -->
+		<div class="flex-grow"></div>
 
+		<!-- Price -->
+		<div class="flex items-center justify-between mt-auto pt-3 hidden">
 			<div>
 				{#if product.type === 'BUNDLE'}
 					<div class="text-lg font-bold text-primary">
