@@ -1,140 +1,122 @@
 /**
- * @fileoverview Checkout page - server load and payment processing
+ * @fileoverview Payment verification after Paystack redirect
  */
-import { redirect, fail } from "@sveltejs/kit";
-import { getCart } from "$lib/server/services/cart.js";
-import { initializePayment } from "$lib/server/services/payment.js";
+import { redirect } from "@sveltejs/kit";
 import { prisma } from "$lib/server/prisma.js";
-import { PUBLIC_PAYSTACK_PUBLIC_KEY } from "$env/static/public";
+import { clearCart } from "$lib/server/services/cart.js";
+import { verifyPayment } from "$lib/server/services/payment.js";
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals }) {
+export async function load({ url, locals }) {
   // Require authentication
   if (!locals.user) {
     throw redirect(303, "/login");
   }
 
-  // Get cart
-  const cart = await getCart(locals.user.id);
+  const reference = url.searchParams.get("reference");
 
-  // Redirect if cart is empty
-  if (cart.items.length === 0) {
+  if (!reference) {
+    console.error("❌ No reference provided");
     throw redirect(303, "/cart");
   }
 
-  return {
-    cart,
-    user: locals.user,
-    paystackPublicKey: PUBLIC_PAYSTACK_PUBLIC_KEY,
-  };
-}
+  console.log("🔍 Verifying payment for reference:", reference);
 
-/** @type {import('./$types').Actions} */
-export const actions = {
-  /**
-   * Initialize Paystack payment
-   */
-  initiate: async ({ request, locals }) => {
-    if (!locals.user) {
-      return fail(401, { error: "Unauthorized" });
+  try {
+    // Verify payment with Paystack
+    const paymentResult = await verifyPayment(reference);
+
+    if (!paymentResult.success) {
+      console.error("❌ Payment verification failed:", paymentResult.error);
+      throw redirect(303, "/cart");
     }
 
-    try {
-      const formData = await request.formData();
-      const cartItemIds = formData.getAll("cartItemIds");
+    console.log("✅ Payment verified successfully");
 
-      if (cartItemIds.length === 0) {
-        return fail(400, { error: "No items to checkout" });
-      }
+    // Get metadata
+    const metadata = paymentResult.data.metadata;
+    const cartItemIds = metadata.cart_item_ids;
 
-      // Get cart items with products
-      const cartItems = await prisma.cartItem.findMany({
+    console.log("📦 Cart items to clear:", cartItemIds);
+
+    // Get purchases by reference
+    const purchases = await prisma.purchase.findMany({
+      where: {
+        paystackRef: reference,
+        userId: locals.user.id,
+      },
+      include: {
+        product: true,
+      },
+    });
+
+    console.log("📚 Found purchases:", purchases.length);
+
+    if (purchases.length === 0) {
+      console.error("❌ No purchases found for reference:", reference);
+      throw redirect(303, "/cart");
+    }
+
+    const purchaseIds = purchases.map((p) => p.id);
+
+    // Update purchases to COMPLETED
+    const updateResult = await prisma.purchase.updateMany({
+      where: {
+        id: { in: purchaseIds },
+        userId: locals.user.id,
+      },
+      data: {
+        paymentStatus: "COMPLETED",
+      },
+    });
+
+    console.log("✅ Updated purchases to COMPLETED:", updateResult.count);
+
+    // Clear cart items
+    if (cartItemIds && cartItemIds.length > 0) {
+      await prisma.cartItem.deleteMany({
         where: {
           id: { in: cartItemIds },
           userId: locals.user.id,
         },
-        include: {
-          product: true,
-        },
       });
-
-      if (cartItems.length === 0) {
-        return fail(400, { error: "Cart items not found" });
-      }
-
-      // Calculate total
-      const total = cartItems.reduce((sum, item) => {
-        const price =
-          item.format === "BUNDLE"
-            ? item.product.bundlePrice || 0
-            : item.format === "AUDIO"
-              ? item.product.audioPrice
-              : item.product.pdfPrice;
-        return sum + price;
-      }, 0);
-
-      // Initialize payment with Paystack FIRST
-      const paymentResult = await initializePayment({
-        email: locals.user.email,
-        amount: total,
-        metadata: {
-          user_id: locals.user.id,
-          cart_item_ids: cartItemIds,
-          customer_name: locals.user.name,
-        },
-      });
-
-      if (!paymentResult.success) {
-        console.error("Payment initialization failed:", paymentResult.error);
-        return fail(500, {
-          error: paymentResult.error || "Payment initialization failed",
-        });
-      }
-
-      // Create purchases in a transaction
-      const purchases = await prisma.$transaction(
-        cartItems.map((item) =>
-          prisma.purchase.create({
-            data: {
-              userId: locals.user.id,
-              productId: item.productId,
-              format: item.format,
-              amount:
-                item.format === "BUNDLE"
-                  ? item.product.bundlePrice || 0
-                  : item.format === "AUDIO"
-                    ? item.product.audioPrice
-                    : item.product.pdfPrice,
-              currency: "KES",
-              paystackRef: paymentResult.data.reference,
-              paymentStatus: "PENDING",
-              expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
-            },
-          }),
-        ),
-      );
-
-      // Return payment data for Paystack Inline popup
-      return {
-        success: true,
-        reference: paymentResult.data.reference,
-        access_code: paymentResult.data.access_code,
-        authorization_url: paymentResult.data.authorization_url,
-        purchase_ids: purchases.map((p) => p.id),
-      };
-    } catch (error) {
-      console.error("Checkout error:", error);
-
-      if (
-        error.code === "P2002" &&
-        error.meta?.target?.includes("paystackRef")
-      ) {
-        return fail(500, {
-          error: "Payment already processed. Please check your purchases.",
-        });
-      }
-
-      return fail(500, { error: "Checkout failed" });
+      console.log("🗑️ Cleared cart items");
+    } else {
+      // Fallback: clear entire cart
+      await clearCart(locals.user.id);
+      console.log("🗑️ Cleared entire cart (fallback)");
     }
-  },
-};
+
+    // Refresh purchases to get updated data
+    const completedPurchases = await prisma.purchase.findMany({
+      where: {
+        id: { in: purchaseIds },
+      },
+      include: {
+        product: true,
+      },
+    });
+
+    console.log(
+      "✅ Verification complete! Purchases:",
+      completedPurchases.length,
+    );
+
+    return {
+      success: true,
+      purchases: completedPurchases,
+      reference,
+      amount: paymentResult.data.amount,
+    };
+  } catch (error) {
+    console.error("💥 Verification error:", error);
+
+    // If it's not a redirect error, redirect to cart
+    if (!error.status || error.status !== 303) {
+      throw redirect(303, "/cart");
+    }
+
+    // Re-throw redirect errors
+    throw error;
+  }
+}

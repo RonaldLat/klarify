@@ -1,5 +1,6 @@
 /**
  * @fileoverview Download endpoint - generates secure download links
+ * File: /routes/download/[purchaseId]/+server.js
  */
 import { json } from "@sveltejs/kit";
 import { generateDownloadLinks } from "$lib/server/services/download.js";
@@ -14,9 +15,10 @@ export async function GET({ params, locals, request }) {
   const { purchaseId } = params;
 
   // Get client info
-  const ipAddress = request.headers.get("x-forwarded-for") || 
-                    request.headers.get("x-real-ip") || 
-                    "unknown";
+  const ipAddress =
+    request.headers.get("x-forwarded-for") ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
   const userAgent = request.headers.get("user-agent") || "unknown";
 
   // Generate download links
@@ -24,7 +26,7 @@ export async function GET({ params, locals, request }) {
     purchaseId,
     locals.user.id,
     ipAddress,
-    userAgent
+    userAgent,
   );
 
   if (!result.success) {

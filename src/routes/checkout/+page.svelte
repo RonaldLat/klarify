@@ -58,7 +58,8 @@
 				
 				onSuccess: (transaction) => {
 					console.log('Payment successful:', transaction);
-					goto(`/checkout/verify?reference=${transaction.reference}`);
+					// Redirect to verification page with reference
+					window.location.href = `/checkout/verify?reference=${transaction.reference}`;
 				},
 				
 				onLoad: (response) => {
