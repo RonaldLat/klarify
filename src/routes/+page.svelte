@@ -83,7 +83,7 @@
 							href="/products?category={category.slug}"
 							class="group bg-card border border-border rounded-lg p-4 md:p-6 hover:shadow-lg hover:border-primary transition-all text-center"
 						>
-							<div class="text-3xl md:text-4xl mb-2 md:mb-3">{category.icon}</div>
+							<div class="text-3xl md:text-4xl mb-2 md:mb-3 hidden">{category.icon}</div>
 							<h3 class="font-semibold text-sm md:text-base text-foreground group-hover:text-primary transition-colors mb-1">
 								{category.name}
 							</h3>
