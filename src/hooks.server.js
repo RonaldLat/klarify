@@ -26,6 +26,12 @@ const PROTECTED_ROUTES = [
 
 const ADMIN_ROUTES = ["/admin"];
 
+// API routes that need admin authentication
+const ADMIN_API_ROUTES = [
+  "/api/products",
+  "/api/upload",
+];
+
 /**
  * Session handler - gets user session and fetches full user data only when needed
  */
@@ -39,9 +45,10 @@ const sessionHandle = async ({ event, resolve }) => {
     });
 
     if (sessionResult?.user) {
-      // Check if we need full user data (for admin routes or specific protected routes)
+      // Check if we need full user data (for admin routes, API routes, or specific protected routes)
       const needsFullUserData =
         ADMIN_ROUTES.some((route) => event.url.pathname.startsWith(route)) ||
+        ADMIN_API_ROUTES.some((route) => event.url.pathname.startsWith(route)) ||
         event.url.pathname.startsWith("/account") ||
         event.url.pathname.startsWith("/complete-profile");
 
@@ -112,10 +119,16 @@ const authGuardHandle = async ({ event, resolve }) => {
     throw redirect(303, "/login");
   }
 
-  // Check admin routes
+  // Check admin routes (both pages and API)
   const isAdminRoute = ADMIN_ROUTES.some((route) =>
     url.pathname.startsWith(route),
-  ); if (isAdminRoute) {
+  );
+  
+  const isAdminApiRoute = ADMIN_API_ROUTES.some((route) =>
+    url.pathname.startsWith(route),
+  );
+
+  if (isAdminRoute || isAdminApiRoute) {
     // If we don't have role yet (basic session), fetch it now
     if (locals.user && locals.user.role === null) {
       const fullUser = await prisma.user.findUnique({
@@ -127,6 +140,13 @@ const authGuardHandle = async ({ event, resolve }) => {
 
     // Check if user is admin
     if (locals.user?.role !== "admin") {
+      // For API routes, return 401 instead of redirect
+      if (isAdminApiRoute) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
       throw redirect(303, "/");
     }
   }
