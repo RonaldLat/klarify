@@ -7,6 +7,8 @@
 </script>
 
 <svelte:head>
+  <link rel="icon" href="/favicon_io/favicon.ico" sizes="any">
+  <!-- <link rel="icon" href="/favicon/favicon.png" type="image/png"> -->
 	<title>Klarify - Audiobooks & Ebooks</title>
 	<meta name="description" content="Access thousands of audiobooks and ebooks" />
 </svelte:head>
