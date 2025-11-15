@@ -9,6 +9,7 @@
 	let audioData = $state(null);
 	let showPlayer = $state(false);
 	let loadingAudio = $state(false);
+	let showIndividualChapters = $state(false); // Accordion state
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
 
 	onMount(async () => {
@@ -61,6 +62,12 @@
 	function copyToClipboard(text) {
 		navigator.clipboard.writeText(text);
 		// Could add toast notification here
+	}
+
+	function formatSize(bytes) {
+		if (!bytes) return '';
+		const mb = bytes / (1024 * 1024);
+		return `${mb.toFixed(1)} MB`;
 	}
 </script>
 
@@ -253,6 +260,67 @@
 									</svg>
 								</button>
 							</div>
+						</div>
+					{/if}
+
+					<!-- Individual Chapters Accordion -->
+					{#if audioData?.chapters && audioData.chapters.length > 0}
+						<div class="border border-border rounded-lg overflow-hidden">
+							<button
+								onclick={() => showIndividualChapters = !showIndividualChapters}
+								class="w-full p-4 bg-muted/30 flex items-center justify-between hover:bg-muted/50 transition-colors"
+							>
+								<div class="flex items-center gap-3">
+									<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+									</svg>
+									<div class="text-left">
+										<div class="font-semibold text-foreground">Individual Chapters</div>
+										<div class="text-xs text-muted-foreground">Download chapters separately ({audioData.chapters.length} files)</div>
+									</div>
+								</div>
+								<svg 
+									class="w-5 h-5 text-foreground transition-transform"
+									style="transform: rotate({showIndividualChapters ? 180 : 0}deg);"
+									fill="none" 
+									stroke="currentColor" 
+									viewBox="0 0 24 24"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+								</svg>
+							</button>
+
+							{#if showIndividualChapters}
+								<div class="border-t border-border bg-card">
+									<div class="max-h-96 overflow-y-auto">
+										{#each audioData.chapters as chapter, index}
+											<div class="p-3 border-b border-border last:border-b-0 hover:bg-accent/30 transition-colors">
+												<div class="flex items-center justify-between gap-3">
+													<div class="flex items-center gap-3 flex-1 min-w-0">
+														<span class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+															{chapter.number}
+														</span>
+														<div class="flex-1 min-w-0">
+															<div class="font-medium text-foreground text-sm truncate">{chapter.title}</div>
+															<div class="text-xs text-muted-foreground">{formatSize(chapter.size)}</div>
+														</div>
+													</div>
+													<a
+														href={chapter.url}
+														download={chapter.filename}
+														class="flex-shrink-0 px-3 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
+													>
+														<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+														</svg>
+														Download
+													</a>
+												</div>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
 						</div>
 					{/if}
 				</div>
