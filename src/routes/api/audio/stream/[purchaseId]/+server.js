@@ -2,7 +2,6 @@
  * @fileoverview Audio streaming API - get chapter list and signed URLs
  * Location: src/routes/api/audio/stream/[purchaseId]/+server.js
  */
-
 import { json, error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/prisma.js';
 import { getAudioChapterUrls, getZippedAudioUrl } from '$lib/server/services/r2.js';
@@ -53,6 +52,8 @@ export async function GET({ params, locals }) {
       throw error(400, 'This purchase does not include audio');
     }
 
+    console.log('🎵 Loading audio for product:', purchase.product.slug);
+
     // Get chapter URLs
     const chapterUrls = await getAudioChapterUrls(
       purchase.product.slug,
@@ -60,19 +61,24 @@ export async function GET({ params, locals }) {
     );
 
     // Get zipped audio URL
-    const zipUrl = await getZippedAudioUrl(
+    const zipResult = await getZippedAudioUrl(
       purchase.product.slug,
       3600
     );
+
+    // If no chapters found, return error
+    if (!chapterUrls.success || !chapterUrls.chapters || chapterUrls.chapters.length === 0) {
+      console.error('❌ No audio chapters available for:', purchase.product.slug);
+      throw error(404, 'Audio chapters not available for this product');
+    }
 
     return json({
       success: true,
       product: purchase.product,
       chapters: chapterUrls.chapters,
-      zipUrl: zipUrl.url,
+      zipUrl: zipResult.success ? zipResult.url : null,
       expiresIn: 3600, // seconds
     });
-
   } catch (err) {
     console.error('Audio streaming error:', err);
     

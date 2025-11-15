@@ -280,7 +280,7 @@
 									</div>
 								</div>
 								<svg 
-									class="w-5 h-5 text-foreground transition-transform"
+									class="w-5 h-5 text-foreground transition-transform duration-300 ease-in-out"
 									style="transform: rotate({showIndividualChapters ? 180 : 0}deg);"
 									fill="none" 
 									stroke="currentColor" 
@@ -290,7 +290,10 @@
 								</svg>
 							</button>
 
-							{#if showIndividualChapters}
+							<div 
+								class="accordion-content"
+								style="max-height: {showIndividualChapters ? '24rem' : '0'}; overflow: hidden; transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);"
+							>
 								<div class="border-t border-border bg-card">
 									<div class="max-h-96 overflow-y-auto">
 										{#each audioData.chapters as chapter, index}
@@ -320,7 +323,7 @@
 										{/each}
 									</div>
 								</div>
-							{/if}
+							</div>
 						</div>
 					{/if}
 				</div>
