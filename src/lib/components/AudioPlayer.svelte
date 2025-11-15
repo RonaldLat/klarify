@@ -1,17 +1,20 @@
 <!--
   @component
-  Audio Player with Chapter Navigation - Improved
+  Audio Player with Chapter Navigation - FINAL WORKING VERSION
   Location: src/lib/components/AudioPlayer.svelte
 -->
 <script>
-  let { 
+  import { slide } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+
+  let {
     chapters = [],
     productTitle = "",
     productAuthor = "",
     coverImage = "",
     publicUrl = ""
   } = $props();
-  
+ 
   let currentChapterIndex = $state(0);
   let isPlaying = $state(false);
   let currentTime = $state(0);
@@ -22,102 +25,89 @@
   let showVolumeSlider = $state(false);
   let audioElement;
   let progressBar;
+  let chapterListContainer;
   let isDragging = $state(false);
-  let dragTime = $state(0); // Track time during drag
-  let wasPlaying = false; // Track if was playing before drag
-  
+  let dragTime = $state(0);
+  let wasPlaying = false;
+ 
   // Get current chapter
   let currentChapter = $derived(chapters[currentChapterIndex] || null);
-  
+ 
   // Format time (seconds to HH:MM:SS or MM:SS)
   function formatTime(seconds) {
     if (!seconds || isNaN(seconds)) return '0:00';
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+   
     if (hrs > 0) {
       return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
-  
+ 
   // Format file size
   function formatSize(bytes) {
     if (!bytes) return '';
     const mb = bytes / (1024 * 1024);
     return `${mb.toFixed(1)} MB`;
   }
-  
+ 
   // Play/Pause toggle
   function togglePlay() {
     if (!audioElement) return;
-    
+   
     if (isPlaying) {
       audioElement.pause();
     } else {
       audioElement.play();
     }
   }
-  
+ 
   // Play specific chapter
   function playChapter(index) {
     currentChapterIndex = index;
     showChapterList = false;
-    
-    // Wait for audio element to load new source
+   
     setTimeout(() => {
       audioElement?.play();
     }, 100);
   }
-  
+ 
   // Next chapter
   function nextChapter() {
     if (currentChapterIndex < chapters.length - 1) {
       playChapter(currentChapterIndex + 1);
     }
   }
-  
+ 
   // Previous chapter
   function previousChapter() {
     if (currentTime > 3) {
-      // If more than 3 seconds played, restart current chapter
       audioElement.currentTime = 0;
     } else if (currentChapterIndex > 0) {
       playChapter(currentChapterIndex - 1);
     }
   }
-  
-  // Seek with mouse/touch
-  function handleSeek(e) {
-    if (!audioElement || !progressBar) return;
-    
-    const rect = progressBar.getBoundingClientRect();
-    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    audioElement.currentTime = percent * duration;
-  }
-  
+ 
   // Progress bar drag
   function handleProgressMouseDown(e) {
     e.preventDefault();
     isDragging = true;
     wasPlaying = isPlaying;
-    
-    // Pause during drag for better UX
+   
     if (isPlaying) {
       audioElement.pause();
     }
-    
-    // Calculate and set drag time
+   
     const rect = progressBar.getBoundingClientRect();
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     dragTime = percent * duration;
-    
-    // Add event listeners to window for smooth dragging
+   
     window.addEventListener('mousemove', handleProgressMouseMove);
     window.addEventListener('mouseup', handleProgressMouseUp);
   }
-  
+ 
   function handleProgressMouseMove(e) {
     if (isDragging && progressBar) {
       e.preventDefault();
@@ -126,30 +116,27 @@
       dragTime = percent * duration;
     }
   }
-  
+ 
   function handleProgressMouseUp(e) {
     if (isDragging) {
       e.preventDefault();
-      
-      // Set the audio time after drag completes
+     
       if (audioElement) {
         audioElement.currentTime = dragTime;
       }
-      
-      // Resume playback if it was playing
+     
       if (wasPlaying) {
         audioElement.play();
       }
-      
+     
       isDragging = false;
       dragTime = 0;
-      
-      // Remove event listeners
+     
       window.removeEventListener('mousemove', handleProgressMouseMove);
       window.removeEventListener('mouseup', handleProgressMouseUp);
     }
   }
-  
+ 
   // Change volume
   function handleVolumeChange(e) {
     volume = parseFloat(e.target.value);
@@ -157,7 +144,7 @@
       audioElement.volume = volume;
     }
   }
-  
+ 
   // Toggle mute
   function toggleMute() {
     if (volume > 0) {
@@ -168,7 +155,7 @@
       volume = 1;
     }
   }
-  
+ 
   // Change playback speed
   function changeSpeed(speed) {
     playbackRate = speed;
@@ -176,44 +163,43 @@
       audioElement.playbackRate = speed;
     }
   }
-  
+ 
   // Skip forward/backward
   function skip(seconds) {
     if (audioElement) {
       audioElement.currentTime = Math.max(0, Math.min(duration, currentTime + seconds));
     }
   }
-  
+ 
   // Audio event handlers
   function handleTimeUpdate() {
     currentTime = audioElement.currentTime;
   }
-  
+ 
   function handleDurationChange() {
     duration = audioElement.duration;
   }
-  
+ 
   function handlePlay() {
     isPlaying = true;
   }
-  
+ 
   function handlePause() {
     isPlaying = false;
   }
-  
+ 
   function handleEnded() {
-    // Auto-play next chapter
     if (currentChapterIndex < chapters.length - 1) {
       playChapter(currentChapterIndex + 1);
     } else {
       isPlaying = false;
     }
   }
-  
+ 
   // Keyboard shortcuts
   function handleKeyPress(e) {
     if (e.target.tagName === 'INPUT') return;
-    
+   
     switch(e.code) {
       case 'Space':
         e.preventDefault();
@@ -243,8 +229,20 @@
         break;
     }
   }
-  
-  // Progress percentage - always smooth, prioritize dragTime when dragging
+ 
+  // FIXED: Close chapter list when clicking outside (excludes toggle button)
+  function handleClickOutside(e) {
+    const toggleButton = e.target.closest('button[title="Chapter list"]');
+    if (
+      showChapterList && 
+      chapterListContainer && 
+      !chapterListContainer.contains(e.target) &&
+      !toggleButton
+    ) {
+      showChapterList = false;
+    }
+  }
+ 
   let progressPercent = $derived.by(() => {
     const time = isDragging ? dragTime : currentTime;
     return duration ? (time / duration) * 100 : 0;
@@ -252,16 +250,28 @@
   let displayTime = $derived(isDragging ? dragTime : currentTime);
 </script>
 
-<svelte:window 
+<svelte:window
   onkeydown={handleKeyPress}
+  onclick={handleClickOutside}
 />
 
-<div class="audio-player" style="background-color: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+<!-- MAIN CONTAINER: Top corners rounded only -->
+<div
+  class="audio-player"
+  style="
+    background-color: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+    overflow: visible;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  "
+>
   <!-- Header with Album Art -->
   <div class="player-header" style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--color-border);">
     <div class="cover-art" style="width: 80px; height: 80px; background-color: var(--color-muted); border-radius: var(--radius-md); flex-shrink: 0; overflow: hidden;">
       {#if coverImage}
-        <img src="{publicUrl}{coverImage}" alt={productTitle} style="width: 100%; height: 100%; object-fit: cover;" />
+        <img src="{publicUrl}{coverImage}" alt={productTitle} style="width:  100%; height: 100%; object-fit: cover;" />
       {:else}
         <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
           <svg style="width: 2rem; height: 2rem; color: var(--color-muted-foreground);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,7 +280,7 @@
         </div>
       {/if}
     </div>
-    
+   
     <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
       <h3 style="font-weight: 600; color: var(--color-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0 0 0.25rem 0;">{productTitle}</h3>
       <p style="font-size: 0.875rem; color: var(--color-muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0;">{productAuthor}</p>
@@ -278,7 +288,7 @@
         <p style="font-size: 0.75rem; color: var(--color-muted-foreground); margin: 0.25rem 0 0 0;">{currentChapter.title}</p>
       {/if}
     </div>
-    
+   
     <!-- Chapter List Toggle -->
     <button
       onclick={() => showChapterList = !showChapterList}
@@ -287,12 +297,12 @@
       onmouseleave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
       title="Chapter list"
     >
-      <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg style="width: 1.25rem; height: 1.25rem; transition: transform 0.3s ease;" class:rotate={showChapterList} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
       </svg>
     </button>
   </div>
-  
+ 
   <!-- Progress Bar -->
   <div style="padding: 1rem 1rem 0;">
     <div
@@ -307,22 +317,22 @@
       aria-valuemax={duration}
       aria-valuenow={currentTime}
     >
-      <div 
+      <div
         class="progress-bar"
         style="height: 100%; background-color: var(--color-primary); transition: none; width: {progressPercent}%; pointer-events: none; will-change: width;"
       ></div>
-      <div 
+      <div
         class="progress-thumb"
         style="position: absolute; top: 50%; left: {progressPercent}%; transform: translate(-50%, -50%); width: 0.75rem; height: 0.75rem; background-color: var(--color-primary); border-radius: 50%; opacity: 0; transition: opacity 0.2s; pointer-events: none; will-change: left;"
       ></div>
     </div>
-    
+   
     <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-muted-foreground); margin-top: 0.25rem;">
       <span>{formatTime(displayTime)}</span>
       <span>{formatTime(duration)}</span>
     </div>
   </div>
-  
+ 
   <!-- Controls -->
   <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 1rem;">
     <!-- Previous -->
@@ -339,7 +349,7 @@
         <path d="M8.445 14.832A1 1 0 0010 14v-2.798l5.445 3.63A1 1 0 0017 14V6a1 1 0 00-1.555-.832L10 8.798V6a1 1 0 00-1.555-.832l-6 4a1 1 0 000 1.664l6 4z" />
       </svg>
     </button>
-    
+   
     <!-- Skip Back 10s -->
     <button
       onclick={() => skip(-10)}
@@ -353,7 +363,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
       </svg>
     </button>
-    
+   
     <!-- Play/Pause -->
     <button
       onclick={togglePlay}
@@ -374,7 +384,7 @@
         </svg>
       {/if}
     </button>
-    
+   
     <!-- Skip Forward 10s -->
     <button
       onclick={() => skip(10)}
@@ -388,7 +398,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
       </svg>
     </button>
-    
+   
     <!-- Next -->
     <button
       onclick={nextChapter}
@@ -404,7 +414,7 @@
       </svg>
     </button>
   </div>
-  
+ 
   <!-- Additional Controls -->
   <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 1rem 1rem; font-size: 0.875rem;">
     <!-- Volume -->
@@ -430,7 +440,7 @@
         {/if}
       </button>
       {#if showVolumeSlider}
-        <div 
+        <div
           onmouseleave={() => showVolumeSlider = false}
           style="position: absolute; left: 100%; bottom: 0; margin-left: 0.5rem; padding: 0.5rem; background-color: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10;"
         >
@@ -447,7 +457,7 @@
         </div>
       {/if}
     </div>
-    
+   
     <!-- Playback Speed -->
     <div style="display: flex; align-items: center; gap: 0.5rem;">
       <span style="color: var(--color-muted-foreground); font-size: 0.75rem;">Speed:</span>
@@ -471,12 +481,23 @@
       {/each}
     </div>
   </div>
-  
-  <!-- Chapter List -->
+ 
+  <!-- Chapter List: Smooth slide + bottom rounded corners -->
   {#if showChapterList}
-    <div style="border-top: 1px solid var(--color-border); max-height: 16rem; overflow-y: auto;">
-      <div style="padding: 0.5rem;">
-        <h4 style="font-size: 0.875rem; font-weight: 600; color: var(--color-foreground); padding: 0.5rem; margin: 0;">Chapters ({chapters.length})</h4>
+    <div
+      bind:this={chapterListContainer}
+      transition:slide={{ duration: 300, easing: cubicOut }}
+      style="
+        border-top: 1px solid var(--color-border);
+        background-color: var(--color-card);
+        border-bottom-left-radius: var(--radius-lg);
+        border-bottom-right-radius: var(--radius-lg);
+      "
+    >
+      <div style="padding: 0.5rem; max-height: 16rem; overflow-y: auto;">
+        <h4 style="font-size: 0.875rem; font-weight: 600; color: var(--color-foreground); padding: 0.5rem; margin: 0;">
+          Chapters ({chapters.length})
+        </h4>
         {#each chapters as chapter, index}
           <button
             onclick={() => playChapter(index)}
@@ -501,31 +522,12 @@
               <div style="font-size: 0.875rem; font-weight: 500; color: var(--color-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{chapter.title}</div>
               <div style="font-size: 0.75rem; color: var(--color-muted-foreground);">{formatSize(chapter.size)}</div>
             </div>
-            <a
-              href={chapter.url}
-              download={chapter.filename}
-              onclick={(e) => e.stopPropagation()}
-              style="flex-shrink: 0; padding: 0.5rem; border-radius: var(--radius-sm); background: transparent; border: none; cursor: pointer; transition: background-color 0.2s; color: var(--color-muted-foreground); display: flex; align-items: center; justify-content: center;"
-              onmouseenter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--color-primary)';
-                e.currentTarget.style.color = 'var(--color-primary-foreground)';
-              }}
-              onmouseleave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = 'var(--color-muted-foreground)';
-              }}
-              title="Download chapter"
-            >
-              <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </a>
           </button>
         {/each}
       </div>
     </div>
   {/if}
-  
+ 
   <!-- Hidden Audio Element -->
   {#if currentChapter}
     <!-- svelte-ignore a11y_media_has_caption -->
@@ -551,7 +553,7 @@
     height: 0.25rem;
     cursor: pointer;
   }
-  
+ 
   input[type="range"].volume-slider::-webkit-slider-thumb {
     appearance: none;
     width: 0.75rem;
@@ -560,7 +562,7 @@
     background-color: var(--color-primary);
     cursor: pointer;
   }
-  
+ 
   input[type="range"].volume-slider::-moz-range-thumb {
     width: 0.75rem;
     height: 0.75rem;
@@ -569,28 +571,33 @@
     cursor: pointer;
     border: 0;
   }
-  
+ 
   /* Progress bar hover effect */
   .progress-container:hover .progress-thumb {
     opacity: 1;
   }
-  
+ 
   .progress-container:hover .progress-bar {
     background-color: var(--color-primary);
     filter: brightness(0.9);
   }
-  
+ 
   /* Button disabled state */
   .control-btn:disabled,
   .play-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+ 
   .control-btn:disabled:hover {
     background-color: transparent !important;
   }
-  
+ 
+  /* Rotate icon animation */
+  svg.rotate {
+    transform: rotate(90deg);
+  }
+ 
   /* Pulse animation */
   @keyframes pulse {
     0%, 100% {
@@ -600,23 +607,23 @@
       opacity: 0.5;
     }
   }
-  
+ 
   /* Smooth scrollbar for chapter list */
-  .audio-player > div:last-of-type::-webkit-scrollbar {
+  div[style*="max-height: 16rem"]::-webkit-scrollbar {
     width: 0.5rem;
   }
-  
-  .audio-player > div:last-of-type::-webkit-scrollbar-track {
+ 
+  div[style*="max-height: 16rem"]::-webkit-scrollbar-track {
     background: var(--color-muted);
     border-radius: var(--radius-sm);
   }
-  
-  .audio-player > div:last-of-type::-webkit-scrollbar-thumb {
+ 
+  div[style*="max-height: 16rem"]::-webkit-scrollbar-thumb {
     background: var(--color-muted-foreground);
     border-radius: var(--radius-sm);
   }
-  
-  .audio-player > div:last-of-type::-webkit-scrollbar-thumb:hover {
+ 
+  div[style*="max-height: 16rem"]::-webkit-scrollbar-thumb:hover {
     background: var(--color-foreground);
   }
 </style>
