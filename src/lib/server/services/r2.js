@@ -1,5 +1,5 @@
 /**
- * @fileoverview R2 Storage Service for Klarify (UPDATED with audio chapters)
+ * @fileoverview R2 Storage Service for Klarify (FIXED PATHS)
  * Location: src/lib/server/services/r2.js
  */
 
@@ -30,16 +30,12 @@ export const r2Client = new S3Client({
 
 /**
  * Product file structure in R2:
- * products/{productId}/cover.{ext}      - Cover image
- * products/{productId}/book.pdf         - Full PDF
- * products/{productId}/audiobook.mp3    - Full audio (single file)
- * products/{productId}/chapters/{slug}_chapter_01.opus - Chapter files
- * products/{productId}/{slug}.audio.zip - Zipped audio chapters
- * products/{productId}/sample.pdf       - PDF preview
- * products/{productId}/sample.mp3       - Audio preview
+ * klarify/products/{productSlug}/cover.{ext}      - Cover image
+ * klarify/products/{productSlug}/{slug}.pdf       - Full PDF
+ * klarify/products/{productSlug}/audiobook.mp3    - Full audio (single file)
+ * klarify/products/{productSlug}/chapters/{slug}_chapter_01.opus - Chapter files
+ * klarify/products/{productSlug}/{slug}.audio.zip - Zipped audio chapters
  */
-
-// ... [Keep all existing upload functions] ...
 
 /**
  * Get signed URLs for all audio chapters
@@ -49,7 +45,10 @@ export const r2Client = new S3Client({
  */
 export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
   try {
+    // FIXED: Include bucket name in prefix
     const prefix = `klarify/products/${productSlug}/chapters/`;
+
+    console.log('🔍 Looking for chapters with prefix:', prefix);
 
     // List all chapter files
     const listCommand = new ListObjectsV2Command({
@@ -60,14 +59,16 @@ export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
     const listResult = await r2Client.send(listCommand);
 
     if (!listResult.Contents || listResult.Contents.length === 0) {
-      return { success: false, error: "No chapters found" };
+      console.log('❌ No chapters found with prefix:', prefix);
+      return { success: false, error: 'No chapters found' };
     }
+
+    console.log(`✅ Found ${listResult.Contents.length} files`);
 
     // Generate signed URL for each chapter
     const chapters = await Promise.all(
-      listResult.Contents.filter(
-        (obj) => obj.Key.endsWith(".opus") || obj.Key.endsWith(".mp3"),
-      )
+      listResult.Contents
+        .filter(obj => obj.Key.endsWith('.opus') || obj.Key.endsWith('.mp3'))
         .sort((a, b) => a.Key.localeCompare(b.Key)) // Sort by filename
         .map(async (obj, index) => {
           const command = new GetObjectCommand({
@@ -76,13 +77,15 @@ export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
           });
 
           const url = await getSignedUrl(r2Client, command, { expiresIn });
-
+          
           // Extract chapter number from filename
           const match = obj.Key.match(/chapter[_-](\d+)/i);
           const chapterNumber = match ? parseInt(match[1]) : index + 1;
-
+          
           // Extract filename without path
-          const filename = obj.Key.split("/").pop();
+          const filename = obj.Key.split('/').pop();
+
+          console.log(`📄 Chapter ${chapterNumber}: ${filename}`);
 
           return {
             number: chapterNumber,
@@ -92,12 +95,12 @@ export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
             size: obj.Size,
             key: obj.Key,
           };
-        }),
+        })
     );
 
     return { success: true, chapters };
   } catch (error) {
-    console.error("❌ Get chapter URLs failed:", error);
+    console.error('❌ Get chapter URLs failed:', error);
     return { success: false, error: error.message };
   }
 }
@@ -110,24 +113,40 @@ export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
  */
 export async function getZippedAudioUrl(productSlug, expiresIn = 3600) {
   try {
-    const key = `klarify/products/${productSlug}/${productSlug.replace(/-/g, "_")}.audio.zip`;
+    // Try multiple naming conventions for the zip file
+    const possibleKeys = [
+      `klarify/products/${productSlug}/${productSlug}.audio.zip`,
+      `klarify/products/${productSlug}/${productSlug.replace(/-/g, '_')}.audio.zip`,
+      `klarify/products/${productSlug}/${productSlug}_audio.zip`,
+    ];
 
-    const command = new GetObjectCommand({
-      Bucket: R2_BUCKET_NAME,
-      Key: key,
-    });
+    for (const key of possibleKeys) {
+      console.log('🤐 Trying zip URL:', key);
+      try {
+        const command = new GetObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: key,
+        });
 
-    const url = await getSignedUrl(r2Client, command, { expiresIn });
-    return { success: true, url };
+        const url = await getSignedUrl(r2Client, command, { expiresIn });
+        console.log('✅ Zip URL generated successfully');
+        return { success: true, url };
+      } catch (err) {
+        // Continue to next possible key
+        continue;
+      }
+    }
+    
+    console.warn('⚠️ No zip file found for product:', productSlug);
+    return { success: false, error: 'Zip file not found' };
   } catch (error) {
-    console.error("❌ Get zip URL failed:", error);
+    console.error('❌ Get zip URL failed:', error);
     return { success: false, error: error.message };
   }
 }
 
 /**
  * Upload a file to R2 with proper organization
- * [Keep existing uploadProductFile function]
  */
 export async function uploadProductFile(
   fileData,
@@ -157,7 +176,6 @@ export async function uploadProductFile(
 
 /**
  * Generate a signed download URL with expiration
- * [Keep existing getSecureDownloadUrl function]
  */
 export async function getSecureDownloadUrl(key, expiresIn = 3600) {
   try {
@@ -176,22 +194,46 @@ export async function getSecureDownloadUrl(key, expiresIn = 3600) {
 
 /**
  * Generate multiple download URLs for a purchase (PDF + Audio bundle)
- * [Keep existing getPurchaseDownloadUrls function]
  */
-export async function getPurchaseDownloadUrls(productId, format) {
+export async function getPurchaseDownloadUrls(productSlug, format) {
   try {
     const urls = {};
 
     if (format === "PDF" || format === "BUNDLE") {
-      const pdfKey = generateProductPath(productId, "pdf", "pdf");
+      // FIXED: Use product slug in path
+      const pdfKey = `klarify/products/${productSlug}/${productSlug}.pdf`;
+      console.log('📄 Generating PDF URL for:', pdfKey);
       const pdfResult = await getSecureDownloadUrl(pdfKey, 3600);
-      if (pdfResult.success) urls.pdf = pdfResult.url;
+      if (pdfResult.success) {
+        urls.pdf = pdfResult.url;
+      } else {
+        console.error('❌ PDF URL generation failed:', pdfResult.error);
+      }
     }
 
     if (format === "AUDIO" || format === "BUNDLE") {
-      const audioKey = generateProductPath(productId, "audio", "mp3");
-      const audioResult = await getSecureDownloadUrl(audioKey, 3600);
-      if (audioResult.success) urls.audio = audioResult.url;
+      // FIXED: Use product slug in path - try multiple possible names
+      const audioKeys = [
+        `klarify/products/${productSlug}/${productSlug}.audio.mp3`,
+        `klarify/products/${productSlug}/audiobook.mp3`,
+        `klarify/products/${productSlug}/${productSlug}.mp3`,
+      ];
+      
+      let audioFound = false;
+      for (const audioKey of audioKeys) {
+        console.log('🎵 Trying Audio URL for:', audioKey);
+        const audioResult = await getSecureDownloadUrl(audioKey, 3600);
+        if (audioResult.success) {
+          urls.audio = audioResult.url;
+          audioFound = true;
+          console.log('✅ Audio URL generated successfully');
+          break;
+        }
+      }
+      
+      if (!audioFound) {
+        console.warn('⚠️ No audio file found for product:', productSlug);
+      }
     }
 
     return { success: true, urls };
@@ -200,23 +242,22 @@ export async function getPurchaseDownloadUrls(productId, format) {
   }
 }
 
-// [Keep all other existing functions: getCoverImageUrl, deleteProductFiles, deleteFile]
-
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
 
-function generateProductPath(productId, fileType, extension) {
+function generateProductPath(productSlug, fileType, extension) {
   const fileMap = {
-    cover: `cover.${extension}`,
-    pdf: "book.pdf",
-    audio: "audiobook.mp3",
-    "sample-pdf": "sample.pdf",
-    "sample-audio": "sample.mp3",
+    cover: `${productSlug}.cover.${extension}`,
+    pdf: `${productSlug}.pdf`,
+    audio: `${productSlug}.audio.mp3`,
+    "sample-pdf": `${productSlug}.sample.pdf`,
+    "sample-audio": `${productSlug}.sample.mp3`,
   };
 
-  const filename = fileMap[fileType] || `${fileType}.${extension}`;
-  return `klarify/products/${productId}/${filename}`;
+  const filename = fileMap[fileType] || `${productSlug}.${fileType}.${extension}`;
+  // FIXED: Include bucket name in path
+  return `klarify/products/${productSlug}/${filename}`;
 }
 
 function getContentType(extension) {
@@ -244,7 +285,7 @@ function getContentType(extension) {
     webp: "image/webp",
     gif: "image/gif",
     svg: "image/svg+xml",
-
+    
     // Archives
     zip: "application/zip",
   };
@@ -286,13 +327,15 @@ export function validateFile(file, fileType) {
   return { valid: true };
 }
 
-export function getCoverImageUrl(productId) {
-  return `klarify/products/${productId}/cover.jpg`;
+export function getCoverImageUrl(productSlug) {
+  // FIXED: Include bucket name in path and use proper naming convention
+  return `klarify/products/${productSlug}/${productSlug}.cover.jpg`;
 }
 
-export async function deleteProductFiles(productId) {
+export async function deleteProductFiles(productSlug) {
   try {
-    const prefix = `klarify/products/${productId}/`;
+    // FIXED: Include bucket name in prefix
+    const prefix = `klarify/products/${productSlug}/`;
     const listCommand = new ListObjectsV2Command({
       Bucket: R2_BUCKET_NAME,
       Prefix: prefix,
@@ -314,7 +357,7 @@ export async function deleteProductFiles(productId) {
       deleted++;
     }
 
-    console.log(`🗑️ Deleted ${deleted} files for product ${productId}`);
+    console.log(`🗑️ Deleted ${deleted} files for product ${productSlug}`);
     return { success: true, deleted };
   } catch (error) {
     console.error("❌ Delete failed:", error);

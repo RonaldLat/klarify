@@ -52,9 +52,12 @@ export async function generateDownloadLinks(
       };
     }
 
+    // FIXED: Use product slug instead of ID
+    console.log('🔍 Generating download URLs for product:', purchase.product.slug);
+    
     // Generate signed URLs from R2
     const urlsResult = await getPurchaseDownloadUrls(
-      purchase.product.id,
+      purchase.product.slug,  // ✅ Changed from purchase.product.id
       purchase.format,
     );
 
