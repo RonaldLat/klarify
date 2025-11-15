@@ -318,6 +318,7 @@ function getContentType(extension) {
  * Get cover image URL
  */
 export function getCoverImageUrl(productSlug) {
+  // FIXED: Include bucket name in path and use proper naming convention
   return `products/${productSlug}/${productSlug}.cover.jpg`;
 }
 

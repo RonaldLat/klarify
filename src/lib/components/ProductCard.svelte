@@ -22,6 +22,7 @@
 		if (hours > 0) return `${hours}h ${minutes}m`;
 		return `${minutes}m`;
 	}
+  console.log(product)
 </script>
 
 <a
