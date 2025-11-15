@@ -24,6 +24,7 @@
   let progressBar;
   let isDragging = $state(false);
   let dragTime = $state(0); // Track time during drag
+  let wasPlaying = false; // Track if was playing before drag
   
   // Get current chapter
   let currentChapter = $derived(chapters[currentChapterIndex] || null);
@@ -100,12 +101,17 @@
   function handleProgressMouseDown(e) {
     e.preventDefault();
     isDragging = true;
+    wasPlaying = isPlaying;
+    
+    // Pause during drag for better UX
+    if (isPlaying) {
+      audioElement.pause();
+    }
     
     // Calculate and set drag time
     const rect = progressBar.getBoundingClientRect();
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     dragTime = percent * duration;
-    audioElement.currentTime = dragTime;
     
     // Add event listeners to window for smooth dragging
     window.addEventListener('mousemove', handleProgressMouseMove);
@@ -113,18 +119,28 @@
   }
   
   function handleProgressMouseMove(e) {
-    if (isDragging && audioElement && progressBar) {
+    if (isDragging && progressBar) {
       e.preventDefault();
       const rect = progressBar.getBoundingClientRect();
       const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       dragTime = percent * duration;
-      audioElement.currentTime = dragTime;
     }
   }
   
   function handleProgressMouseUp(e) {
     if (isDragging) {
       e.preventDefault();
+      
+      // Set the audio time after drag completes
+      if (audioElement) {
+        audioElement.currentTime = dragTime;
+      }
+      
+      // Resume playback if it was playing
+      if (wasPlaying) {
+        audioElement.play();
+      }
+      
       isDragging = false;
       dragTime = 0;
       
@@ -170,9 +186,7 @@
   
   // Audio event handlers
   function handleTimeUpdate() {
-    if (!isDragging) {
-      currentTime = audioElement.currentTime;
-    }
+    currentTime = audioElement.currentTime;
   }
   
   function handleDurationChange() {
@@ -230,8 +244,11 @@
     }
   }
   
-  // Progress percentage
-  let progressPercent = $derived(duration ? ((isDragging ? dragTime : currentTime) / duration) * 100 : 0);
+  // Progress percentage - always smooth, prioritize dragTime when dragging
+  let progressPercent = $derived.by(() => {
+    const time = isDragging ? dragTime : currentTime;
+    return duration ? (time / duration) * 100 : 0;
+  });
   let displayTime = $derived(isDragging ? dragTime : currentTime);
 </script>
 
@@ -292,11 +309,11 @@
     >
       <div 
         class="progress-bar"
-        style="height: 100%; background-color: var(--color-primary); transition: {isDragging ? 'none' : 'width 0.1s'}; width: {progressPercent}%; pointer-events: none;"
+        style="height: 100%; background-color: var(--color-primary); transition: none; width: {progressPercent}%; pointer-events: none; will-change: width;"
       ></div>
       <div 
         class="progress-thumb"
-        style="position: absolute; top: 50%; left: {progressPercent}%; transform: translate(-50%, -50%); width: 0.75rem; height: 0.75rem; background-color: var(--color-primary); border-radius: 50%; opacity: 0; transition: opacity 0.2s; pointer-events: none;"
+        style="position: absolute; top: 50%; left: {progressPercent}%; transform: translate(-50%, -50%); width: 0.75rem; height: 0.75rem; background-color: var(--color-primary); border-radius: 50%; opacity: 0; transition: opacity 0.2s; pointer-events: none; will-change: left;"
       ></div>
     </div>
     
@@ -484,6 +501,25 @@
               <div style="font-size: 0.875rem; font-weight: 500; color: var(--color-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{chapter.title}</div>
               <div style="font-size: 0.75rem; color: var(--color-muted-foreground);">{formatSize(chapter.size)}</div>
             </div>
+            <a
+              href={chapter.url}
+              download={chapter.filename}
+              onclick={(e) => e.stopPropagation()}
+              style="flex-shrink: 0; padding: 0.5rem; border-radius: var(--radius-sm); background: transparent; border: none; cursor: pointer; transition: background-color 0.2s; color: var(--color-muted-foreground); display: flex; align-items: center; justify-content: center;"
+              onmouseenter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-primary)';
+                e.currentTarget.style.color = 'var(--color-primary-foreground)';
+              }}
+              onmouseleave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'var(--color-muted-foreground)';
+              }}
+              title="Download chapter"
+            >
+              <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </a>
           </button>
         {/each}
       </div>
