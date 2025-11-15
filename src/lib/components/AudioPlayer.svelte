@@ -23,6 +23,7 @@
   let audioElement;
   let progressBar;
   let isDragging = $state(false);
+  let dragTime = $state(0); // Track time during drag
   
   // Get current chapter
   let currentChapter = $derived(chapters[currentChapterIndex] || null);
@@ -99,7 +100,12 @@
   function handleProgressMouseDown(e) {
     e.preventDefault();
     isDragging = true;
-    handleSeek(e);
+    
+    // Calculate and set drag time
+    const rect = progressBar.getBoundingClientRect();
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    dragTime = percent * duration;
+    audioElement.currentTime = dragTime;
     
     // Add event listeners to window for smooth dragging
     window.addEventListener('mousemove', handleProgressMouseMove);
@@ -111,7 +117,8 @@
       e.preventDefault();
       const rect = progressBar.getBoundingClientRect();
       const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      audioElement.currentTime = percent * duration;
+      dragTime = percent * duration;
+      audioElement.currentTime = dragTime;
     }
   }
   
@@ -119,6 +126,7 @@
     if (isDragging) {
       e.preventDefault();
       isDragging = false;
+      dragTime = 0;
       
       // Remove event listeners
       window.removeEventListener('mousemove', handleProgressMouseMove);
@@ -223,7 +231,8 @@
   }
   
   // Progress percentage
-  let progressPercent = $derived(duration ? (currentTime / duration) * 100 : 0);
+  let progressPercent = $derived(duration ? ((isDragging ? dragTime : currentTime) / duration) * 100 : 0);
+  let displayTime = $derived(isDragging ? dragTime : currentTime);
 </script>
 
 <svelte:window 
@@ -292,7 +301,7 @@
     </div>
     
     <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-muted-foreground); margin-top: 0.25rem;">
-      <span>{formatTime(currentTime)}</span>
+      <span>{formatTime(displayTime)}</span>
       <span>{formatTime(duration)}</span>
     </div>
   </div>
