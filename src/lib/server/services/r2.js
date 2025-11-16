@@ -1,5 +1,5 @@
 /**
- * @fileoverview R2 Storage Service for Klarify (FIXED PATHS)
+ * @fileoverview R2 Storage Service for Klarify (UPDATED with Summaries)
  * Location: src/lib/server/services/r2.js
  */
 
@@ -35,6 +35,9 @@ export const r2Client = new S3Client({
  * klarify/products/{productSlug}/audiobook.mp3    - Full audio (single file)
  * klarify/products/{productSlug}/chapters/{slug}_chapter_01.opus - Chapter files
  * klarify/products/{productSlug}/{slug}.audio.zip - Zipped audio chapters
+ * 
+ * klarify/summaries/{productSlug}/{slug}.mp3      - Summary audio (NEW)
+ * klarify/summaries/{productSlug}/{slug}.cover.jpg - Summary cover (NEW)
  */
 
 /**
@@ -145,6 +148,161 @@ export async function getZippedAudioUrl(productSlug, expiresIn = 3600) {
   }
 }
 
+// ============================================
+// NEW: SUMMARY FUNCTIONS
+// ============================================
+
+/**
+ * Get signed URL for summary audio file
+ * Summaries are single audio files (no chapters)
+ * @param {string} productSlug - Summary product slug
+ * @param {number} expiresIn - Expiration time in seconds (default: 1 hour)
+ * @returns {Promise<{success: boolean, url?: string, key?: string, error?: string}>}
+ */
+export async function getSummaryAudioUrl(productSlug, expiresIn = 3600) {
+  try {
+    // Summaries follow this structure:
+    // klarify/summaries/{productSlug}/{productSlug}.mp3
+    // OR
+    // klarify/summaries/{productSlug}/summary.mp3
+    
+    const possibleKeys = [
+      `klarify/summaries/${productSlug}/${productSlug}.mp3`,
+      `klarify/summaries/${productSlug}/summary.mp3`,
+      `klarify/summaries/${productSlug}/${productSlug}.audio.mp3`,
+    ];
+
+    console.log('🎧 Looking for summary audio:', productSlug);
+
+    for (const key of possibleKeys) {
+      try {
+        const command = new GetObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: key,
+        });
+
+        const url = await getSignedUrl(r2Client, command, { expiresIn });
+        console.log('✅ Summary audio URL generated:', key);
+        return { success: true, url, key };
+      } catch (err) {
+        // Continue to next possible key
+        continue;
+      }
+    }
+
+    console.warn('⚠️ No summary audio file found for:', productSlug);
+    return { success: false, error: 'Summary audio not found' };
+  } catch (error) {
+    console.error('❌ Get summary audio URL failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get cover image path for summary
+ * @param {string} productSlug - Summary product slug
+ * @returns {string} - Path to cover image
+ */
+export function getSummaryCoverImageUrl(productSlug) {
+  return `klarify/summaries/${productSlug}/${productSlug}.cover.jpg`;
+}
+
+/**
+ * Upload summary audio file to R2
+ * @param {Buffer|Uint8Array} fileData - Audio file data
+ * @param {string} productSlug - Product slug
+ * @returns {Promise<{success: boolean, key?: string, error?: string}>}
+ */
+export async function uploadSummaryAudio(fileData, productSlug) {
+  try {
+    const key = `klarify/summaries/${productSlug}/${productSlug}.mp3`;
+
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: fileData,
+      ContentType: 'audio/mpeg',
+    });
+
+    await r2Client.send(command);
+    console.log(`✅ Uploaded summary audio: ${key}`);
+
+    return { success: true, key };
+  } catch (error) {
+    console.error("❌ Summary audio upload failed:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Upload summary cover image to R2
+ * @param {Buffer|Uint8Array} fileData - Image file data
+ * @param {string} productSlug - Product slug
+ * @param {string} extension - File extension (jpg, png, webp)
+ * @returns {Promise<{success: boolean, key?: string, error?: string}>}
+ */
+export async function uploadSummaryCover(fileData, productSlug, extension = 'jpg') {
+  try {
+    const key = `klarify/summaries/${productSlug}/${productSlug}.cover.${extension}`;
+
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: fileData,
+      ContentType: getContentType(extension),
+    });
+
+    await r2Client.send(command);
+    console.log(`✅ Uploaded summary cover: ${key}`);
+
+    return { success: true, key };
+  } catch (error) {
+    console.error("❌ Summary cover upload failed:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete all summary files from R2
+ * @param {string} productSlug - Summary product slug
+ * @returns {Promise<{success: boolean, deleted?: number, error?: string}>}
+ */
+export async function deleteSummaryFiles(productSlug) {
+  try {
+    const prefix = `klarify/summaries/${productSlug}/`;
+    const listCommand = new ListObjectsV2Command({
+      Bucket: R2_BUCKET_NAME,
+      Prefix: prefix,
+    });
+
+    const listResult = await r2Client.send(listCommand);
+
+    if (!listResult.Contents || listResult.Contents.length === 0) {
+      return { success: true, deleted: 0 };
+    }
+
+    let deleted = 0;
+    for (const object of listResult.Contents) {
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: object.Key,
+      });
+      await r2Client.send(deleteCommand);
+      deleted++;
+    }
+
+    console.log(`🗑️ Deleted ${deleted} summary files for ${productSlug}`);
+    return { success: true, deleted };
+  } catch (error) {
+    console.error("❌ Delete summary files failed:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================
+// EXISTING FUNCTIONS (UPDATED)
+// ============================================
+
 /**
  * Upload a file to R2 with proper organization
  */
@@ -194,13 +352,27 @@ export async function getSecureDownloadUrl(key, expiresIn = 3600) {
 
 /**
  * Generate multiple download URLs for a purchase (PDF + Audio bundle)
+ * UPDATED: Now supports SUMMARY type
  */
-export async function getPurchaseDownloadUrls(productSlug, format) {
+export async function getPurchaseDownloadUrls(productSlug, format, productType = null) {
   try {
     const urls = {};
 
+    // NEW: Handle summaries separately (audio only)
+    if (productType === 'SUMMARY') {
+      console.log('📦 Getting summary download URL for:', productSlug);
+      const summaryResult = await getSummaryAudioUrl(productSlug, 3600);
+      if (summaryResult.success) {
+        urls.audio = summaryResult.url;
+        return { success: true, urls };
+      } else {
+        console.error('❌ Summary audio not found');
+        return { success: false, error: 'Summary audio not found' };
+      }
+    }
+
+    // EXISTING: Original logic for regular products (unchanged)
     if (format === "PDF" || format === "BUNDLE") {
-      // FIXED: Use product slug in path
       const pdfKey = `klarify/products/${productSlug}/${productSlug}.pdf`;
       console.log('📄 Generating PDF URL for:', pdfKey);
       const pdfResult = await getSecureDownloadUrl(pdfKey, 3600);
@@ -212,7 +384,6 @@ export async function getPurchaseDownloadUrls(productSlug, format) {
     }
 
     if (format === "AUDIO" || format === "BUNDLE") {
-      // FIXED: Use product slug in path - try multiple possible names
       const audioKeys = [
         `klarify/products/${productSlug}/${productSlug}.audio.mp3`,
         `klarify/products/${productSlug}/audiobook.mp3`,
@@ -243,7 +414,7 @@ export async function getPurchaseDownloadUrls(productSlug, format) {
 }
 
 // ============================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS (UNCHANGED)
 // ============================================
 
 function generateProductPath(productSlug, fileType, extension) {
@@ -256,7 +427,6 @@ function generateProductPath(productSlug, fileType, extension) {
   };
 
   const filename = fileMap[fileType] || `${productSlug}.${fileType}.${extension}`;
-  // FIXED: Include bucket name in path
   return `klarify/products/${productSlug}/${filename}`;
 }
 
@@ -328,13 +498,11 @@ export function validateFile(file, fileType) {
 }
 
 export function getCoverImageUrl(productSlug) {
-  // FIXED: Include bucket name in path and use proper naming convention
   return `klarify/products/${productSlug}/${productSlug}.cover.jpg`;
 }
 
 export async function deleteProductFiles(productSlug) {
   try {
-    // FIXED: Include bucket name in prefix
     const prefix = `klarify/products/${productSlug}/`;
     const listCommand = new ListObjectsV2Command({
       Bucket: R2_BUCKET_NAME,

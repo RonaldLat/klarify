@@ -1,10 +1,14 @@
 /**
- * @fileoverview Audio streaming API - get chapter list and signed URLs
+ * @fileoverview Audio streaming API - UPDATED to support summaries
  * Location: src/routes/api/audio/stream/[purchaseId]/+server.js
  */
 import { json, error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/prisma.js';
-import { getAudioChapterUrls, getZippedAudioUrl } from '$lib/server/services/r2.js';
+import { 
+  getAudioChapterUrls, 
+  getZippedAudioUrl,
+  getSummaryAudioUrl  // ← ADD THIS IMPORT
+} from '$lib/server/services/r2.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, locals }) {
@@ -28,6 +32,8 @@ export async function GET({ params, locals }) {
             author: true,
             duration: true,
             coverImage: true,
+            type: true,              // ← ADD THIS
+            keyTakeaways: true,      // ← ADD THIS
           }
         } 
       },
@@ -52,7 +58,37 @@ export async function GET({ params, locals }) {
       throw error(400, 'This purchase does not include audio');
     }
 
-    console.log('🎵 Loading audio for product:', purchase.product.slug);
+    // ===== NEW: Handle summaries differently =====
+    if (purchase.product.type === 'SUMMARY') {
+      console.log('🎧 Loading summary audio for:', purchase.product.slug);
+      
+      const summaryResult = await getSummaryAudioUrl(purchase.product.slug, 3600);
+      
+      if (!summaryResult.success) {
+        console.error('❌ Summary audio not found for:', purchase.product.slug);
+        throw error(404, 'Summary audio not available');
+      }
+
+      // Return as single "chapter" for player compatibility
+      return json({
+        success: true,
+        product: purchase.product,
+        chapters: [{
+          number: 1,
+          title: `${purchase.product.title} - Summary`,
+          filename: `${purchase.product.slug}.mp3`,
+          url: summaryResult.url,
+          size: 0,
+        }],
+        zipUrl: null, // Summaries don't have zips
+        expiresIn: 3600,
+        isSummary: true, // Flag for UI
+      });
+    }
+    // ============================================
+
+    // Original logic for regular audiobooks
+    console.log('🎵 Loading audio chapters for product:', purchase.product.slug);
 
     // Get chapter URLs
     const chapterUrls = await getAudioChapterUrls(
@@ -77,7 +113,8 @@ export async function GET({ params, locals }) {
       product: purchase.product,
       chapters: chapterUrls.chapters,
       zipUrl: zipResult.success ? zipResult.url : null,
-      expiresIn: 3600, // seconds
+      expiresIn: 3600,
+      isSummary: false,
     });
   } catch (err) {
     console.error('Audio streaming error:', err);

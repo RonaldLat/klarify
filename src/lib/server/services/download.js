@@ -1,5 +1,6 @@
 /**
  * @fileoverview Download service - handles secure file downloads
+ * UPDATED: Now supports SUMMARY type products
  */
 import { prisma } from "$lib/server/prisma.js";
 import { getPurchaseDownloadUrls } from "$lib/server/services/r2.js";
@@ -52,13 +53,15 @@ export async function generateDownloadLinks(
       };
     }
 
-    // FIXED: Use product slug instead of ID
+    // Log product info for debugging
     console.log('🔍 Generating download URLs for product:', purchase.product.slug);
+    console.log('📦 Product type:', purchase.product.type);
     
-    // Generate signed URLs from R2
+    // CHANGE #1: Pass product type to R2 service (3rd parameter)
     const urlsResult = await getPurchaseDownloadUrls(
-      purchase.product.slug,  // ✅ Changed from purchase.product.id
+      purchase.product.slug,
       purchase.format,
+      purchase.product.type  // ← ADDED THIS LINE
     );
 
     if (!urlsResult.success) {
@@ -82,6 +85,7 @@ export async function generateDownloadLinks(
       },
     });
 
+    // CHANGE #2: Include product type in response
     return {
       success: true,
       urls: urlsResult.urls,
@@ -91,6 +95,7 @@ export async function generateDownloadLinks(
         downloadCount: purchase.downloadCount + 1,
         maxDownloads: purchase.maxDownloads,
         expiresAt: purchase.expiresAt,
+        productType: purchase.product.type,  // ← ADDED THIS LINE
       },
     };
   } catch (error) {

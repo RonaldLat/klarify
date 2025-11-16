@@ -1,4 +1,5 @@
 // Prisma schema for Klarify with Better-Auth compatibility
+// UPDATED: Added SUMMARY support
 
 generator client {
   provider = "prisma-client-js"
@@ -29,7 +30,6 @@ model User {
   banExpires    DateTime?
 
   // Our custom fields
-  // phone         String?   @unique
   phone         String?   
 
   // Relations
@@ -37,7 +37,7 @@ model User {
   accounts      Account[]
   purchases     Purchase[]
   reviews       Review[]
-  cartItems     CartItem[]  // Added cart relation
+  cartItems     CartItem[]
 
   @@index([email])
   @@index([phone])
@@ -138,6 +138,11 @@ model Product {
   samplePdf   String?
   sampleAudio String?
 
+  // NEW: Summary-specific fields
+  keyTakeaways      Int?     // Number of key insights (e.g., 5, 8, 10)
+  originalProductId String?  // Links to full book/audiobook
+  isSummary         Boolean  @default(false) // Quick filter flag
+
   // Metadata
   publishedAt DateTime?
   featured    Boolean     @default(false)
@@ -152,11 +157,17 @@ model Product {
   categories  Category[]
   purchases   Purchase[]
   reviews     Review[]
-  cartItems   CartItem[]  // Added cart relation
+  cartItems   CartItem[]
+
+  // NEW: Summary relations (for linking summaries to full books)
+  originalProduct Product?  @relation("ProductSummaries", fields: [originalProductId], references: [id])
+  summaries       Product[] @relation("ProductSummaries")
 
   @@index([slug])
   @@index([type])
   @@index([featured])
+  @@index([isSummary])              // NEW INDEX
+  @@index([originalProductId])      // NEW INDEX
 }
 
 enum ProductType {
@@ -164,6 +175,7 @@ enum ProductType {
   AUDIOBOOK
   MAGAZINE
   BUNDLE
+  SUMMARY    // NEW TYPE
 }
 
 model Category {
@@ -187,7 +199,6 @@ model Purchase {
   format          PurchaseFormat
   amount          Float
   currency        String         @default("KES")
-  // paystackRef     String         @unique
   paystackRef     String        
   paymentStatus   PaymentStatus  @default(PENDING)
   downloadToken   String         @unique @default(cuid())

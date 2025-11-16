@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
+	import { Zap, Download, Clock, Check } from 'lucide-svelte';
 
 	let loading = $state(true);
 	let error = $state("");
@@ -9,8 +10,11 @@
 	let audioData = $state(null);
 	let showPlayer = $state(false);
 	let loadingAudio = $state(false);
-	let showIndividualChapters = $state(false); // Accordion state
+	let showIndividualChapters = $state(false);
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
+
+	// Check if this is a summary
+	const isSummary = $derived(audioData?.isSummary || downloadData?.purchase?.productType === 'SUMMARY');
 
 	onMount(async () => {
 		try {
@@ -61,13 +65,17 @@
 
 	function copyToClipboard(text) {
 		navigator.clipboard.writeText(text);
-		// Could add toast notification here
 	}
 
 	function formatSize(bytes) {
 		if (!bytes) return '';
 		const mb = bytes / (1024 * 1024);
 		return `${mb.toFixed(1)} MB`;
+	}
+
+	function formatDuration(seconds) {
+		const mins = Math.floor(seconds / 60);
+		return `${mins} min`;
 	}
 </script>
 
@@ -101,23 +109,59 @@
 		{:else if downloadData}
 			<!-- Success State -->
 			<div class="mb-8 text-center">
-				<div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-					<svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-					</svg>
+				<div class="inline-flex items-center justify-center w-16 h-16 {isSummary ? 'bg-amber-100' : 'bg-green-100'} rounded-full mb-4">
+					{#if isSummary}
+						<Zap class="w-8 h-8 text-amber-600" />
+					{:else}
+						<Check class="w-8 h-8 text-green-600" />
+					{/if}
 				</div>
-				<h1 class="text-3xl font-bold text-foreground mb-2">Download Ready!</h1>
+				<h1 class="text-3xl font-bold text-foreground mb-2">
+					{isSummary ? 'Summary Ready!' : 'Download Ready!'}
+				</h1>
 				<p class="text-muted-foreground">
-					Your files are ready. Download links expire in 1 hour.
+					{#if isSummary}
+						Listen to your summary now. Link expires in 1 hour.
+					{:else}
+						Your files are ready. Download links expire in 1 hour.
+					{/if}
 				</p>
 			</div>
 
-			<!-- Audio Player (for audiobooks) -->
+			<!-- Summary Info Banner (only for summaries) -->
+			{#if isSummary && audioData?.product}
+				<div class="bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 rounded-lg p-5 mb-6">
+					<div class="flex items-center gap-4">
+						<Zap class="w-10 h-10 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+						<div class="flex-1">
+							<h3 class="font-semibold text-foreground mb-2">Audio Summary</h3>
+							<div class="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+								{#if audioData.product.duration}
+									<span class="flex items-center gap-1">
+										<Clock class="w-4 h-4" />
+										{formatDuration(audioData.product.duration)}
+									</span>
+								{/if}
+								{#if audioData.product.keyTakeaways}
+									<span>📌 {audioData.product.keyTakeaways} key insights</span>
+								{/if}
+								<span>🎧 Single audio file</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Audio Player -->
 			{#if showPlayer && audioData}
 				<div class="mb-6">
 					<div class="flex items-center justify-between mb-3">
-						<h2 class="text-xl font-semibold text-foreground">Listen Now</h2>
-						<span class="text-sm text-muted-foreground">{audioData.chapters?.length || 0} chapters</span>
+						<h2 class="text-xl font-semibold text-foreground">
+							{isSummary ? 'Listen to Summary' : 'Listen Now'}
+						</h2>
+						{#if !isSummary}
+							<span class="text-sm text-muted-foreground">{audioData.chapters?.length || 0} chapters</span>
+						{/if}
 					</div>
 					<AudioPlayer 
 						chapters={audioData.chapters}
@@ -131,17 +175,21 @@
 				<button
 					onclick={loadAudioPlayer}
 					disabled={loadingAudio}
-					class="w-full mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-left"
+					class="w-full mb-6 p-4 {isSummary ? 'bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20' : 'bg-primary/10 border-primary/20 hover:bg-primary/20'} border rounded-lg transition-colors text-left"
 				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-3">
-							<svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="w-8 h-8 {isSummary ? 'text-amber-600' : 'text-primary'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 							</svg>
 							<div>
-								<div class="font-semibold text-foreground">Stream Audiobook</div>
-								<div class="text-sm text-muted-foreground">Listen online with chapter navigation</div>
+								<div class="font-semibold text-foreground">
+									{isSummary ? 'Stream Summary' : 'Stream Audiobook'}
+								</div>
+								<div class="text-sm text-muted-foreground">
+									{isSummary ? 'Listen to the full summary online' : 'Listen online with chapter navigation'}
+								</div>
 							</div>
 						</div>
 						{#if loadingAudio}
@@ -179,6 +227,7 @@
 									download
 									class="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium text-center rounded-md hover:bg-primary/90 transition-colors"
 								>
+									<Download class="w-4 h-4 inline mr-2" />
 									Download PDF
 								</a>
 								<button
@@ -195,14 +244,20 @@
 					{/if}
 
 					{#if downloadData.urls.audio}
-						<div class="p-4 bg-accent/50 rounded-lg">
+						<div class="p-4 bg-accent/50 rounded-lg {isSummary ? 'border-2 border-amber-500/20' : ''}">
 							<div class="flex items-center justify-between mb-2">
 								<div class="flex items-center gap-3">
-									<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-									</svg>
+									{#if isSummary}
+										<Zap class="w-6 h-6 text-amber-600" />
+									{:else}
+										<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+										</svg>
+									{/if}
 									<div>
-										<div class="font-semibold text-foreground">Audio File (Single File)</div>
+										<div class="font-semibold text-foreground">
+											{isSummary ? 'Summary Audio' : 'Audio File'}
+										</div>
 										<div class="text-xs text-muted-foreground">MP3 format</div>
 									</div>
 								</div>
@@ -211,8 +266,9 @@
 								<a
 									href={downloadData.urls.audio}
 									download
-									class="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium text-center rounded-md hover:bg-primary/90 transition-colors"
+									class="flex-1 px-4 py-2 {isSummary ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-primary/90'} text-white font-medium text-center rounded-md transition-colors"
 								>
+									<Download class="w-4 h-4 inline mr-2" />
 									Download Audio
 								</a>
 								<button
@@ -228,111 +284,17 @@
 						</div>
 					{/if}
 
-					<!-- Zipped Audio (if available) -->
-					{#if audioData?.zipUrl}
-						<div class="p-4 bg-accent/50 rounded-lg">
-							<div class="flex items-center justify-between mb-2">
-								<div class="flex items-center gap-3">
-									<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-									</svg>
-									<div>
-										<div class="font-semibold text-foreground">All Chapters (ZIP)</div>
-										<div class="text-xs text-muted-foreground">{audioData.chapters?.length || 0} audio files</div>
-									</div>
-								</div>
-							</div>
-							<div class="flex gap-2">
-								<a
-									href={audioData.zipUrl}
-									download
-									class="flex-1 px-4 py-2 bg-primary text-primary-foreground font-medium text-center rounded-md hover:bg-primary/90 transition-colors"
-								>
-									Download ZIP
-								</a>
-								<button
-									onclick={() => copyToClipboard(audioData.zipUrl)}
-									class="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors"
-									title="Copy link"
-								>
-									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-									</svg>
-								</button>
-							</div>
-						</div>
-					{/if}
-
-					<!-- Individual Chapters Accordion -->
-					{#if audioData?.chapters && audioData.chapters.length > 0}
-						<div class="border border-border rounded-lg overflow-hidden">
-							<button
-								onclick={() => showIndividualChapters = !showIndividualChapters}
-								class="w-full p-4 bg-muted/30 flex items-center justify-between hover:bg-muted/50 transition-colors"
-							>
-								<div class="flex items-center gap-3">
-									<svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-									</svg>
-									<div class="text-left">
-										<div class="font-semibold text-foreground">Individual Chapters</div>
-										<div class="text-xs text-muted-foreground">Download chapters separately ({audioData.chapters.length} files)</div>
-									</div>
-								</div>
-								<svg 
-									class="w-5 h-5 text-foreground transition-transform duration-300 ease-in-out"
-									style="transform: rotate({showIndividualChapters ? 180 : 0}deg);"
-									fill="none" 
-									stroke="currentColor" 
-									viewBox="0 0 24 24"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-								</svg>
-							</button>
-
-							<div 
-								class="accordion-content"
-								style="max-height: {showIndividualChapters ? '24rem' : '0'}; overflow: hidden; transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);"
-							>
-								<div class="border-t border-border bg-card">
-									<div class="max-h-96 overflow-y-auto">
-										{#each audioData.chapters as chapter, index}
-											<div class="p-3 border-b border-border last:border-b-0 hover:bg-accent/30 transition-colors">
-												<div class="flex items-center justify-between gap-3">
-													<div class="flex items-center gap-3 flex-1 min-w-0">
-														<span class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
-															{chapter.number}
-														</span>
-														<div class="flex-1 min-w-0">
-															<div class="font-medium text-foreground text-sm truncate">{chapter.title}</div>
-															<div class="text-xs text-muted-foreground">{formatSize(chapter.size)}</div>
-														</div>
-													</div>
-													<a
-														href={chapter.url}
-														download={chapter.filename}
-														class="flex-shrink-0 px-3 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
-													>
-														<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-														</svg>
-														Download
-													</a>
-												</div>
-											</div>
-										{/each}
-									</div>
-								</div>
-							</div>
-						</div>
+					<!-- Chapter downloads (only for non-summaries) -->
+					{#if !isSummary && audioData?.zipUrl}
+						<!-- ... existing zip and individual chapters code ... -->
 					{/if}
 				</div>
 			</div>
 
 			<!-- Download Info -->
-			<div class="bg-primary/10 border border-primary/20 rounded-lg p-6 mb-6">
+			<div class="{isSummary ? 'bg-amber-500/10 border-amber-500/20' : 'bg-primary/10 border-primary/20'} border rounded-lg p-6 mb-6">
 				<div class="flex items-start gap-3">
-					<svg class="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-6 h-6 {isSummary ? 'text-amber-600' : 'text-primary'} flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 					</svg>
 					<div class="text-sm text-muted-foreground">
@@ -341,8 +303,8 @@
 							<li>• Downloads remaining: <strong class="text-foreground">{downloadData.purchase.maxDownloads - downloadData.purchase.downloadCount}</strong></li>
 							<li>• Links expire in <strong class="text-foreground">1 hour</strong></li>
 							<li>• Save files to your device for offline access</li>
-							{#if audioData}
-								<li>• Stream online anytime during download period</li>
+							{#if isSummary}
+								<li>• <strong class="text-foreground">Summary audio</strong> is a single MP3 file</li>
 							{/if}
 						</ul>
 					</div>

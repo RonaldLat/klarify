@@ -1,58 +1,128 @@
 /**
- * DEBUG ENDPOINT - List all R2 files for a product
- * Location: src/routes/api/debug/r2-files/[productSlug]/+server.js
- * DELETE THIS FILE AFTER DEBUGGING
+ * @fileoverview Audio streaming API - UPDATED to support summaries
+ * Location: src/routes/api/audio/stream/[purchaseId]/+server.js
  */
-import { json } from '@sveltejs/kit';
-import { r2Client } from '$lib/server/services/r2.js';
-import { ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { R2_BUCKET_NAME } from '$env/static/private';
+import { json, error } from '@sveltejs/kit';
+import { prisma } from '$lib/server/prisma.js';
+import { 
+  getAudioChapterUrls, 
+  getZippedAudioUrl,
+  getSummaryAudioUrl  // ← ADD THIS IMPORT
+} from '$lib/server/services/r2.js';
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ params }) {
-  const { productSlug } = params;
-  
+export async function GET({ params, locals }) {
+  // Check authentication
+  if (!locals.user) {
+    throw error(401, 'Unauthorized');
+  }
+
+  const { purchaseId } = params;
+
   try {
-    // List all files with different possible prefixes
-    const prefixes = [
-      `klarify/products/${productSlug}/`,
-      `products/${productSlug}/`,
-      `${productSlug}/`,
-    ];
-    
-    const results = {};
-    
-    for (const prefix of prefixes) {
-      console.log(`🔍 Checking prefix: ${prefix}`);
+    // Get purchase with product details
+    const purchase = await prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: { 
+        product: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            author: true,
+            duration: true,
+            coverImage: true,
+            type: true,              // ← ADD THIS
+            keyTakeaways: true,      // ← ADD THIS
+          }
+        } 
+      },
+    });
+
+    if (!purchase) {
+      throw error(404, 'Purchase not found');
+    }
+
+    // Verify ownership
+    if (purchase.userId !== locals.user.id) {
+      throw error(403, 'Unauthorized');
+    }
+
+    // Check payment status
+    if (purchase.paymentStatus !== 'COMPLETED') {
+      throw error(400, 'Payment not completed');
+    }
+
+    // Check if format includes audio
+    if (purchase.format !== 'AUDIO' && purchase.format !== 'BUNDLE') {
+      throw error(400, 'This purchase does not include audio');
+    }
+
+    // ===== NEW: Handle summaries differently =====
+    if (purchase.product.type === 'SUMMARY') {
+      console.log('🎧 Loading summary audio for:', purchase.product.slug);
       
-      const command = new ListObjectsV2Command({
-        Bucket: R2_BUCKET_NAME,
-        Prefix: prefix,
-      });
+      const summaryResult = await getSummaryAudioUrl(purchase.product.slug, 3600);
       
-      const response = await r2Client.send(command);
-      
-      if (response.Contents && response.Contents.length > 0) {
-        results[prefix] = response.Contents.map(obj => ({
-          key: obj.Key,
-          size: obj.Size,
-          lastModified: obj.LastModified,
-        }));
-        console.log(`✅ Found ${response.Contents.length} files with prefix: ${prefix}`);
-      } else {
-        results[prefix] = [];
-        console.log(`❌ No files found with prefix: ${prefix}`);
+      if (!summaryResult.success) {
+        console.error('❌ Summary audio not found for:', purchase.product.slug);
+        throw error(404, 'Summary audio not available');
       }
+
+      // Return as single "chapter" for player compatibility
+      return json({
+        success: true,
+        product: purchase.product,
+        chapters: [{
+          number: 1,
+          title: `${purchase.product.title} - Summary`,
+          filename: `${purchase.product.slug}.mp3`,
+          url: summaryResult.url,
+          size: 0,
+        }],
+        zipUrl: null, // Summaries don't have zips
+        expiresIn: 3600,
+        isSummary: true, // Flag for UI
+      });
+    }
+    // ============================================
+
+    // Original logic for regular audiobooks
+    console.log('🎵 Loading audio chapters for product:', purchase.product.slug);
+
+    // Get chapter URLs
+    const chapterUrls = await getAudioChapterUrls(
+      purchase.product.slug,
+      3600 // 1 hour expiry
+    );
+
+    // Get zipped audio URL
+    const zipResult = await getZippedAudioUrl(
+      purchase.product.slug,
+      3600
+    );
+
+    // If no chapters found, return error
+    if (!chapterUrls.success || !chapterUrls.chapters || chapterUrls.chapters.length === 0) {
+      console.error('❌ No audio chapters available for:', purchase.product.slug);
+      throw error(404, 'Audio chapters not available for this product');
+    }
+
+    return json({
+      success: true,
+      product: purchase.product,
+      chapters: chapterUrls.chapters,
+      zipUrl: zipResult.success ? zipResult.url : null,
+      expiresIn: 3600,
+      isSummary: false,
+    });
+  } catch (err) {
+    console.error('Audio streaming error:', err);
+    
+    if (err.status) {
+      throw err;
     }
     
-    return json({
-      productSlug,
-      bucket: R2_BUCKET_NAME,
-      results,
-    });
-    
-  } catch (error) {
-    console.error('Debug R2 error:', error);
-    return json({ error: error.message }, { status: 500 });
+    throw error(500, err.message || 'Failed to load audio');
   }
 }

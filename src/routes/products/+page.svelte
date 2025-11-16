@@ -1,8 +1,9 @@
 <script>
-    import ProductCard from '$lib/components/ProductCard.svelte';
+	import ProductCard from '$lib/components/ProductCard.svelte';
+	import { Book, Headphones, Zap, FileText } from '@lucide/svelte';
 
 	let { data } = $props();
-  const publicUrl ="https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/"
+	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
 
 	/**
 	 * Format duration in seconds to readable format
@@ -25,41 +26,56 @@
 					<input
 						type="search"
 						name="q"
-						value={data.searchQuery}
-						placeholder="Search books, authors..."
+						value={data.searchQuery || ''}
+						placeholder="Search books, authors, summaries..."
 						class="w-full px-4 py-2 rounded-md border border-input bg-background text-foreground text-sm
 							focus:outline-none focus:ring-2 focus:ring-ring"
 					/>
 				</form>
 
 				<!-- Type Filter -->
-				<div class="flex gap-2">
+				<div class="flex gap-2 flex-wrap">
 					<a
 						href="/products"
-						class="px-4 py-2 rounded-md text-sm font-medium transition-colors
+						class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
 							{!data.type ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 					>
+						<Book class="w-4 h-4" />
 						All
 					</a>
 					<a
 						href="/products?type=EBOOK"
-						class="px-4 py-2 rounded-md text-sm font-medium transition-colors
+						class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
 							{data.type === 'EBOOK' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 					>
+						<Book class="w-4 h-4" />
 						eBooks
 					</a>
 					<a
 						href="/products?type=AUDIOBOOK"
-						class="px-4 py-2 rounded-md text-sm font-medium transition-colors
+						class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
 							{data.type === 'AUDIOBOOK' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 					>
+						<Headphones class="w-4 h-4" />
 						Audiobooks
 					</a>
 					<a
+						href="/products?type=SUMMARY"
+						class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors relative
+							{data.type === 'SUMMARY' ? 'bg-amber-500 text-white' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'}"
+					>
+						<Zap class="w-4 h-4" />
+						Summaries
+						<span class="absolute -top-1 -right-1 px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
+							New
+						</span>
+					</a>
+					<a
 						href="/products?type=MAGAZINE"
-						class="px-4 py-2 rounded-md text-sm font-medium transition-colors
+						class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
 							{data.type === 'MAGAZINE' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 					>
+						<FileText class="w-4 h-4" />
 						Magazines
 					</a>
 				</div>
@@ -71,10 +87,10 @@
 					<span class="text-sm text-muted-foreground">Categories:</span>
 					{#each data.categories as category}
 						<a
-							href="/products?category={category.slug}"
+							href="/products?category={category.slug}{data.type ? `&type=${data.type}` : ''}"
 							class="px-3 py-1 rounded-full text-xs font-medium transition-colors
 								{data.categorySlug === category.slug 
-									? 'bg-primary text-primary-foreground' 
+									? (data.type === 'SUMMARY' ? 'bg-amber-500 text-white' : 'bg-primary text-primary-foreground')
 									: 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 						>
 							{category.icon} {category.name}
@@ -84,6 +100,39 @@
 			{/if}
 		</div>
 	</section>
+
+	<!-- Summary Feature Banner (only when viewing summaries) -->
+	{#if data.type === 'SUMMARY'}
+		<section class="bg-gradient-to-br from-amber-500/10 via-background to-background border-b border-border py-8">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex flex-col md:flex-row items-center gap-6">
+					<div class="flex-shrink-0">
+						<div class="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center">
+							<Zap class="w-8 h-8 text-white" />
+						</div>
+					</div>
+					<div class="flex-1 text-center md:text-left">
+						<h2 class="text-2xl font-bold text-foreground mb-2">
+							Learn Faster with Audio Summaries
+						</h2>
+						<p class="text-muted-foreground">
+							Get key insights from bestselling books in 15-20 minutes. Perfect for busy learners.
+						</p>
+					</div>
+					<div class="flex gap-4 text-sm">
+						<div class="flex items-center gap-2">
+							<Headphones class="w-5 h-5 text-amber-500" />
+							<span class="text-muted-foreground">Audio Only</span>
+						</div>
+						<div class="flex items-center gap-2">
+							<Zap class="w-5 h-5 text-amber-500" />
+							<span class="text-muted-foreground">15-20 min</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	{/if}
 
 	<!-- Results Count -->
 	<section class="py-6">
@@ -99,52 +148,56 @@
 
 	<!-- Products Grid -->
 	<section class="pb-20">
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-		{#if data.products.length === 0}
-			<!-- Empty State -->
-			<div class="text-center py-16">
-				<svg class="w-24 h-24 mx-auto mb-6 text-muted-foreground opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-				</svg>
-				<h3 class="text-xl font-semibold text-foreground mb-2">No products found</h3>
-				<p class="text-muted-foreground mb-6">Try adjusting your search or filters</p>
-				<a href="/products" class="text-primary hover:underline">Clear filters</a>
-			</div>
-		{:else}
-			<!-- Products Grid - Mobile First -->
-			<div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-				{#each data.products as product}
-					<ProductCard {product} {publicUrl} />
-				{/each}
-			</div>
-
-			<!-- Pagination -->
-			{#if data.totalPages > 1}
-				<div class="mt-8 sm:mt-12 flex justify-center gap-2">
-					{#if data.currentPage > 1}
-						<a
-							href="/products?page={data.currentPage - 1}{data.searchQuery ? `&q=${data.searchQuery}` : ''}{data.categorySlug ? `&category=${data.categorySlug}` : ''}{data.type ? `&type=${data.type}` : ''}"
-							class="px-3 sm:px-4 py-2 rounded-md border border-border bg-card hover:bg-accent transition-colors text-sm sm:text-base"
-						>
-							Previous
-						</a>
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			{#if data.products.length === 0}
+				<!-- Empty State -->
+				<div class="text-center py-16">
+					{#if data.type === 'SUMMARY'}
+						<Zap class="w-24 h-24 mx-auto mb-6 text-amber-500 opacity-50" />
+					{:else}
+						<svg class="w-24 h-24 mx-auto mb-6 text-muted-foreground opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+						</svg>
 					{/if}
-
-					<span class="px-3 sm:px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm sm:text-base">
-						Page {data.currentPage} of {data.totalPages}
-					</span>
-
-					{#if data.currentPage < data.totalPages}
-						<a
-							href="/products?page={data.currentPage + 1}{data.searchQuery ? `&q=${data.searchQuery}` : ''}{data.categorySlug ? `&category=${data.categorySlug}` : ''}{data.type ? `&type=${data.type}` : ''}"
-							class="px-3 sm:px-4 py-2 rounded-md border border-border bg-card hover:bg-accent transition-colors text-sm sm:text-base"
-						>
-							Next
-						</a>
-					{/if}
+					<h3 class="text-xl font-semibold text-foreground mb-2">No products found</h3>
+					<p class="text-muted-foreground mb-6">Try adjusting your search or filters</p>
+					<a href="/products" class="text-primary hover:underline">Clear filters</a>
 				</div>
+			{:else}
+				<!-- Products Grid - Mobile First -->
+				<div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+					{#each data.products as product}
+						<ProductCard {product} {publicUrl} />
+					{/each}
+				</div>
+
+				<!-- Pagination -->
+				{#if data.totalPages > 1}
+					<div class="mt-8 sm:mt-12 flex justify-center gap-2">
+						{#if data.currentPage > 1}
+							<a
+								href="/products?page={data.currentPage - 1}{data.searchQuery ? `&q=${data.searchQuery}` : ''}{data.categorySlug ? `&category=${data.categorySlug}` : ''}{data.type ? `&type=${data.type}` : ''}"
+								class="px-3 sm:px-4 py-2 rounded-md border border-border bg-card hover:bg-accent transition-colors text-sm sm:text-base"
+							>
+								Previous
+							</a>
+						{/if}
+
+						<span class="px-3 sm:px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm sm:text-base">
+							Page {data.currentPage} of {data.totalPages}
+						</span>
+
+						{#if data.currentPage < data.totalPages}
+							<a
+								href="/products?page={data.currentPage + 1}{data.searchQuery ? `&q=${data.searchQuery}` : ''}{data.categorySlug ? `&category=${data.categorySlug}` : ''}{data.type ? `&type=${data.type}` : ''}"
+								class="px-3 sm:px-4 py-2 rounded-md border border-border bg-card hover:bg-accent transition-colors text-sm sm:text-base"
+							>
+								Next
+							</a>
+						{/if}
+					</div>
+				{/if}
 			{/if}
-		{/if}
-	</div>
-</section>
+		</div>
+	</section>
 </div>
