@@ -4,6 +4,34 @@
 	let { data } = $props();
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
 
+	// Helper function to build a URL that preserves existing parameters
+	function buildUrl(newParams) {
+		const currentParams = new URLSearchParams();
+
+		// 1. Preserve existing parameters unless overridden by newParams
+		if (data.searchQuery) currentParams.set('q', data.searchQuery);
+		if (data.categorySlug) currentParams.set('category', data.categorySlug);
+		if (data.summaryType) currentParams.set('format', data.summaryType);
+		if (data.sortBy) currentParams.set('sort', data.sortBy);
+		if (data.currentPage) currentParams.set('page', data.currentPage);
+		
+		// 2. Add/override new parameters
+		for (const [key, value] of Object.entries(newParams)) {
+			// Use null/empty string to remove the parameter
+			if (value === null || value === "") { 
+				currentParams.delete(key);
+			} else {
+				currentParams.set(key, value);
+			}
+		}
+
+		// 3. Ensure 'page' is reset to 1 when filters/sort change, unless explicitly set in newParams
+		// Note: The caller should pass page: 1 when changing filters/sort.
+		
+		const queryString = currentParams.toString();
+		return `/summaries${queryString ? '?' + queryString : ''}`;
+	}
+
 	const features = [
 		{ icon: '⚡', title: 'Quick Learning', desc: 'Grasp key insights in 15-20 minutes' },
 		{ icon: '🎧', title: 'Audio & Text', desc: 'Listen or read on the go' },
@@ -18,7 +46,6 @@
 </svelte:head>
 
 <div class="bg-background">
-	<!-- Hero Section -->
 	<section class="bg-gradient-to-br from-amber-500/10 via-background to-background border-b border-border py-12 sm:py-16">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 			<div class="text-center max-w-3xl mx-auto">
@@ -32,7 +59,6 @@
 					Get the key insights from bestselling books without spending hours reading. Perfect for busy professionals and lifelong learners.
 				</p>
 				
-				<!-- Search -->
 				<form method="GET" class="max-w-2xl mx-auto mb-8">
 					<div class="relative">
 						<input
@@ -43,7 +69,7 @@
 							class="w-full px-6 py-4 rounded-full border-2 border-input bg-background text-foreground
 								focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-base"
 						/>
-						<button 
+						<button 
 							type="submit"
 							class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-full font-medium transition-colors"
 						>
@@ -53,7 +79,6 @@
 				</form>
 			</div>
 
-			<!-- Features Grid -->
 			<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
 				{#each features as feature}
 					<div class="bg-card border border-border rounded-lg p-4 text-center">
@@ -66,36 +91,34 @@
 		</div>
 	</section>
 
-	<!-- Filters Section -->
 	<section class="bg-card border-b border-border py-6">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 			<div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-				<!-- Summary Type Filter -->
 				<div class="flex gap-2 flex-wrap">
 					<span class="text-sm text-muted-foreground self-center mr-2">Format:</span>
 					<a
-						href="/summaries"
+						href={buildUrl({ format: null, page: 1 })}
 						class="px-4 py-2 rounded-md text-sm font-medium transition-colors
 							{!data.summaryType ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 					>
 						All Formats
 					</a>
 					<a
-						href="/summaries?format=AUDIO"
+						href={buildUrl({ format: 'AUDIO', page: 1 })}
 						class="px-4 py-2 rounded-md text-sm font-medium transition-colors
 							{data.summaryType === 'AUDIO' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 					>
 						🎧 Audio
 					</a>
 					<a
-						href="/summaries?format=TEXT"
+						href={buildUrl({ format: 'TEXT', page: 1 })}
 						class="px-4 py-2 rounded-md text-sm font-medium transition-colors
 							{data.summaryType === 'TEXT' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 					>
 						📄 Text
 					</a>
 					<a
-						href="/summaries?format=BOTH"
+						href={buildUrl({ format: 'BOTH', page: 1 })}
 						class="px-4 py-2 rounded-md text-sm font-medium transition-colors
 							{data.summaryType === 'BOTH' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 					>
@@ -103,12 +126,11 @@
 					</a>
 				</div>
 
-				<!-- Sort -->
 				<div class="flex gap-2 items-center">
 					<span class="text-sm text-muted-foreground">Sort:</span>
-					<select 
-						name="sort" 
-						onchange="window.location.href = `/summaries?sort=${this.value}`"
+					<select 
+						name="sort" 
+						onchange={`window.location.href = buildUrl({ sort: this.value, page: 1 })`}
 						class="px-4 py-2 rounded-md border border-input bg-background text-sm"
 					>
 						<option value="newest" selected={data.sortBy === 'newest'}>Newest First</option>
@@ -118,27 +140,33 @@
 				</div>
 			</div>
 
-			<!-- Categories -->
 			{#if data.categories.length > 0}
 				<div class="mt-4 flex flex-wrap gap-2">
 					<span class="text-sm text-muted-foreground">Categories:</span>
 					{#each data.categories as category}
 						<a
-							href="/summaries?category={category.slug}"
+							href={buildUrl({ category: category.slug, page: 1 })}
 							class="px-3 py-1 rounded-full text-xs font-medium transition-colors
-								{data.categorySlug === category.slug 
-									? 'bg-amber-500 text-white' 
+								{data.categorySlug === category.slug 
+									? 'bg-amber-500 text-white' 
 									: 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
 						>
 							{category.icon} {category.name}
 						</a>
 					{/each}
+					{#if data.categorySlug}
+						<a
+							href={buildUrl({ category: null, page: 1 })}
+							class="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+						>
+							✕ Clear Category
+						</a>
+					{/if}
 				</div>
 			{/if}
 		</div>
 	</section>
 
-	<!-- Results Count -->
 	<section class="py-6">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 			<p class="text-muted-foreground">
@@ -150,31 +178,27 @@
 		</div>
 	</section>
 
-	<!-- Summaries Grid -->
 	<section class="pb-20">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 			{#if data.summaries.length === 0}
-				<!-- Empty State -->
 				<div class="text-center py-16">
 					<div class="text-6xl mb-6">📚</div>
 					<h3 class="text-xl font-semibold text-foreground mb-2">No summaries found</h3>
 					<p class="text-muted-foreground mb-6">Try adjusting your search or filters</p>
-					<a href="/summaries" class="text-primary hover:underline">Clear filters</a>
+					<a href={buildUrl({ q: null, category: null, format: null, page: 1 })} class="text-primary hover:underline">Clear filters</a>
 				</div>
 			{:else}
-				<!-- Summaries Grid -->
 				<div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
 					{#each data.summaries as summary}
 						<ProductCard product={summary} {publicUrl} />
 					{/each}
 				</div>
 
-				<!-- Pagination -->
 				{#if data.totalPages > 1}
 					<div class="mt-8 sm:mt-12 flex justify-center gap-2">
 						{#if data.currentPage > 1}
 							<a
-								href="/summaries?page={data.currentPage - 1}{data.searchQuery ? `&q=${data.searchQuery}` : ''}{data.categorySlug ? `&category=${data.categorySlug}` : ''}{data.summaryType ? `&format=${data.summaryType}` : ''}"
+								href={buildUrl({ page: data.currentPage - 1 })}
 								class="px-3 sm:px-4 py-2 rounded-md border border-border bg-card hover:bg-accent transition-colors text-sm sm:text-base"
 							>
 								Previous
@@ -187,7 +211,7 @@
 
 						{#if data.currentPage < data.totalPages}
 							<a
-								href="/summaries?page={data.currentPage + 1}{data.searchQuery ? `&q=${data.searchQuery}` : ''}{data.categorySlug ? `&category=${data.categorySlug}` : ''}{data.summaryType ? `&format=${data.summaryType}` : ''}"
+								href={buildUrl({ page: data.currentPage + 1 })}
 								class="px-3 sm:px-4 py-2 rounded-md border border-border bg-card hover:bg-accent transition-colors text-sm sm:text-base"
 							>
 								Next
@@ -199,7 +223,6 @@
 		</div>
 	</section>
 
-	<!-- CTA Section -->
 	<section class="bg-gradient-to-br from-amber-500/10 via-background to-background border-t border-border py-16">
 		<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 			<h2 class="text-3xl font-bold text-foreground mb-4">
@@ -208,7 +231,7 @@
 			<p class="text-lg text-muted-foreground mb-8">
 				Join thousands of learners who are getting more done in less time with our expert-curated book summaries.
 			</p>
-			<a 
+			<a 
 				href="/products"
 				class="inline-flex items-center gap-2 px-8 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold transition-colors"
 			>
