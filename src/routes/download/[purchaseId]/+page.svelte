@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
-	import { Zap, Download, Clock, Check } from 'lucide-svelte';
+	import { Zap, Download, Clock, Check } from '@lucide/svelte';
 
 	let loading = $state(true);
 	let error = $state("");
