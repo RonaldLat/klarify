@@ -1,27 +1,32 @@
 <script>
-	import { Clock, Zap, Headphones, Star, Book } from '@lucide/svelte';
+	import { Book, Headphones, Zap, FileText, Star, Package } from '@lucide/svelte';
 	
-	export let product;
-	export let publicUrl;
+	let { product, publicUrl } = $props();
 	
-	/**
-	 * Format duration in seconds to readable format
-	 */
+	const isSummary = product.type === 'SUMMARY';
+	const isBundle = product.type === 'BUNDLE';
+	
+	// Get display price
+	function getDisplayPrice() {
+		if (isSummary) return product.audioPrice;
+		if (product.type === 'AUDIOBOOK') return product.audioPrice;
+		if (product.type === 'BUNDLE') return product.bundlePrice || (product.pdfPrice + product.audioPrice);
+		return product.pdfPrice;
+	}
+	
+	// Format duration
 	function formatDuration(seconds) {
+		if (!seconds) return null;
 		const hours = Math.floor(seconds / 3600);
 		const minutes = Math.floor((seconds % 3600) / 60);
 		if (hours > 0) return `${hours}h ${minutes}m`;
 		return `${minutes}m`;
 	}
-
-	// Check if this is a summary
-	const isSummary = product.type === 'SUMMARY';
 </script>
 
 <a
 	href="/products/{product.slug}"
-	class="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-all flex flex-col h-full
-		{isSummary ? 'hover:border-amber-500/50' : ''}"
+	class="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg hover:border-primary/50 transition-all duration-300 flex flex-col"
 >
 	<!-- Cover Image -->
 	<div class="aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden relative">
@@ -29,36 +34,31 @@
 			<img 
 				src={publicUrl + product.coverImage} 
 				alt="{product.title} cover"
-				class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+				class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
 			/>
 		{:else}
-			<Book class="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground opacity-50" />
+			<Book class="w-12 h-12 md:w-16 md:h-16 text-muted-foreground opacity-50" />
 		{/if}
-
-		<!-- Summary Badge - Top Left -->
-		{#if isSummary}
-			<div class="absolute top-2 left-2">
-				<span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-500 text-white text-xs font-semibold rounded-md shadow-lg">
+		
+		<!-- Type Badge -->
+		<div class="absolute top-2 left-2">
+			{#if isSummary}
+				<span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-500 text-white text-xs font-semibold rounded shadow-lg">
 					<Zap class="w-3 h-3" />
 					Summary
 				</span>
-			</div>
-		{/if}
-
-		<!-- Duration Badge - Bottom Right (for summaries & audiobooks) -->
-		{#if product.duration && (isSummary || product.type === 'AUDIOBOOK')}
-			<div class="absolute bottom-2 right-2">
-				<span class="inline-flex items-center gap-1 px-2 py-1 bg-black/80 text-white text-xs font-medium rounded backdrop-blur-sm">
-					<Clock class="w-3 h-3" />
-					{formatDuration(product.duration)}
+			{:else if isBundle}
+				<span class="inline-flex items-center gap-1 px-2 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded shadow-lg">
+					<Package class="w-3 h-3" />
+					Bundle
 				</span>
-			</div>
-		{/if}
+			{/if}
+		</div>
 
-		<!-- Featured Badge - Top Right -->
-		{#if product.featured}
+		<!-- Featured Badge -->
+		{#if product.featured && !isSummary}
 			<div class="absolute top-2 right-2">
-				<span class="inline-flex items-center gap-1 px-2 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-md shadow-lg">
+				<span class="inline-flex items-center gap-1 px-2 py-1 bg-yellow-500 text-white text-xs font-semibold rounded shadow-lg">
 					<Star class="w-3 h-3 fill-current" />
 					Featured
 				</span>
@@ -66,90 +66,86 @@
 		{/if}
 	</div>
 
-	<div class="p-3 sm:p-4 flex flex-col flex-grow">
+	<!-- Content -->
+	<div class="p-3 md:p-4 flex-1 flex flex-col">
 		<!-- Title -->
-		<h3 class="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1 text-sm sm:text-base">
+		<h3 class="font-semibold text-sm md:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1 min-h-[2.5rem] md:min-h-[3rem]">
 			{product.title}
 		</h3>
-
+		
 		<!-- Author -->
-		<p class="text-xs sm:text-sm text-muted-foreground mb-2">
-			by {product.author}
+		<p class="text-xs md:text-sm text-muted-foreground mb-2 truncate">
+			{product.author}
 		</p>
 
-		<!-- Summary-Specific Info -->
-		{#if isSummary}
-			<div class="flex flex-col gap-1.5 mb-3">
-				<!-- Key Takeaways -->
-				{#if product.keyTakeaways}
-					<div class="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-						<Zap class="w-3.5 h-3.5" />
-						<span class="font-medium">{product.keyTakeaways} key insights</span>
+		<!-- Metadata -->
+		<div class="flex flex-wrap items-center gap-2 mb-3 text-xs text-muted-foreground">
+			<!-- Format Icons -->
+			<div class="flex items-center gap-1">
+				{#if isSummary}
+					<Headphones class="w-3.5 h-3.5 text-amber-600" />
+					<span class="text-amber-600 dark:text-amber-400 font-medium">Audio</span>
+				{:else if isBundle}
+					<div class="flex items-center gap-0.5">
+						<Book class="w-3.5 h-3.5 text-primary" />
+						<span class="text-primary">+</span>
+						<Headphones class="w-3.5 h-3.5 text-primary" />
 					</div>
-				{/if}
-
-				<!-- Audio Format -->
-				<div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+				{:else if product.type === 'AUDIOBOOK'}
 					<Headphones class="w-3.5 h-3.5" />
-					<span>Audio Summary</span>
-				</div>
-
-				<!-- Original Book Link (if available) -->
-				{#if product.originalProduct}
-					<div class="flex items-center gap-1.5 text-xs text-muted-foreground">
-						<Book class="w-3.5 h-3.5" />
-						<span class="truncate">From: {product.originalProduct.title}</span>
-					</div>
+					<span>Audio</span>
+				{:else if product.type === 'EBOOK'}
+					<Book class="w-3.5 h-3.5" />
+					<span>eBook</span>
+				{:else if product.type === 'MAGAZINE'}
+					<FileText class="w-3.5 h-3.5" />
+					<span>Magazine</span>
 				{/if}
 			</div>
-		{:else}
-			<!-- Regular Product Info -->
-			<div class="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-				<span class="px-2 py-0.5 bg-secondary rounded">
-					{product.type}
+
+			<!-- Duration or Page Count -->
+			{#if product.duration && formatDuration(product.duration)}
+				<span class="text-muted-foreground">• {formatDuration(product.duration)}</span>
+			{:else if product.pageCount}
+				<span class="text-muted-foreground">• {product.pageCount}p</span>
+			{/if}
+		</div>
+
+		<!-- Summary-specific info -->
+		{#if isSummary && product.keyTakeaways}
+			<div class="mb-3 text-xs">
+				<span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full font-medium">
+					<Zap class="w-3 h-3" />
+					{product.keyTakeaways} Key Insights
 				</span>
-				{#if product.duration}
-					<span class="flex items-center gap-1">
-						<Clock class="w-3 h-3" />
-						{formatDuration(product.duration)}
-					</span>
-				{:else if product.pageCount}
-					<span>{product.pageCount} pages</span>
-				{/if}
 			</div>
 		{/if}
 
-		<!-- Spacer to push price to bottom -->
-		<div class="flex-grow"></div>
+		<!-- Rating -->
+		{#if product.rating > 0}
+			<div class="flex items-center gap-1 mb-3 text-xs">
+				<Star class="w-3.5 h-3.5 text-yellow-500 fill-current" />
+				<span class="font-medium text-foreground">{product.rating.toFixed(1)}</span>
+				<span class="text-muted-foreground">({product.reviewCount})</span>
+			</div>
+		{/if}
 
-		<!-- Price & Rating -->
-		<div class="flex items-center justify-between mt-auto pt-3 border-t border-border">
+		<!-- Spacer -->
+		<div class="flex-1"></div>
+
+		<!-- Price -->
+		<div class="flex items-center justify-between pt-2 border-t border-border">
 			<div>
-				{#if product.type === 'BUNDLE'}
-					<div class="text-base sm:text-lg font-bold text-primary">
-						KSh {product.bundlePrice}
-					</div>
-					<div class="text-xs text-muted-foreground line-through">
-						KSh {product.pdfPrice + product.audioPrice}
-					</div>
-				{:else if product.type === 'AUDIOBOOK' || isSummary}
-					<div class="text-base sm:text-lg font-bold {isSummary ? 'text-amber-600 dark:text-amber-400' : 'text-primary'}">
-						KSh {product.audioPrice}
-					</div>
-				{:else}
-					<div class="text-base sm:text-lg font-bold text-primary">
-						KSh {product.pdfPrice}
-					</div>
+				<div class="text-sm md:text-base font-bold {isSummary ? 'text-amber-600 dark:text-amber-400' : 'text-primary'}">
+					KSh {getDisplayPrice()}
+				</div>
+				{#if isBundle}
+					<div class="text-xs text-muted-foreground">Audio + PDF</div>
 				{/if}
 			</div>
-
-			<!-- Rating -->
-			{#if product.rating > 0}
-				<div class="flex items-center gap-1">
-					<Star class="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 fill-current" />
-					<span class="text-xs sm:text-sm font-medium">{product.rating.toFixed(1)}</span>
-				</div>
-			{/if}
+			<div class="text-xs text-primary group-hover:translate-x-1 transition-transform">
+				View →
+			</div>
 		</div>
 	</div>
 </a>
