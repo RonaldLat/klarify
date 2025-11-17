@@ -78,7 +78,7 @@
 </svelte:head>
 
 <div class="min-h-screen bg-background py-8 md:py-12">
-	<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+	<div class="max-w-4xl mx-auto px-1 sm:px-6 lg:px-8">
 		{#if loading}
 			<!-- Loading State -->
 			<div class="text-center py-16">
@@ -148,7 +148,7 @@
 
 			<!-- Audio Player Section -->
 			{#if showPlayer && audioData}
-				<div class="mb-6 bg-card border border-border rounded-lg p-6">
+				<div class="mb-6 bg-card border border-border rounded-lg p-0.5">
 					<div class="flex items-center justify-between mb-4">
 						<h2 class="text-xl font-semibold text-foreground flex items-center gap-2">
 							<Headphones class="w-6 h-6 {isSummary ? 'text-amber-600' : 'text-primary'}" />
