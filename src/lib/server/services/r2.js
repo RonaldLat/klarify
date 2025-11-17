@@ -392,3 +392,17 @@ export async function deleteSummaryFiles(productSlug) {
     return { success: false, error: error.message };
   }
 }
+export async function deleteFile(key) {
+  try {
+    const command = new DeleteObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+    });
+    await r2Client.send(command);
+    console.log(`🗑️ Deleted: ${key}`);
+    return { success: true };
+  } catch (error) {
+    console.error("❌ Delete failed:", error);
+    return { success: false, error: error.message };
+  }
+}
