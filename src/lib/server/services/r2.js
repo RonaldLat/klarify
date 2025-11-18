@@ -47,10 +47,8 @@ export const r2Client = new S3Client({
  */
 export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
   try {
-    // FIXED: Correct path without 'klarify/' prefix
     const prefix = `products/${productSlug}/audio/`;
-
-    console.log('🔍 Looking for audiobook chapters with prefix:', prefix);
+    console.log('🔍 Looking for audiobook chapters:', prefix);
 
     const listCommand = new ListObjectsV2Command({
       Bucket: R2_BUCKET_NAME,
@@ -60,13 +58,10 @@ export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
     const listResult = await r2Client.send(listCommand);
 
     if (!listResult.Contents || listResult.Contents.length === 0) {
-      console.log('❌ No chapters found with prefix:', prefix);
+      console.log('❌ No chapters found');
       return { success: false, error: 'No chapters found' };
     }
 
-    console.log(`✅ Found ${listResult.Contents.length} chapter files`);
-
-    // Generate signed URL for each chapter
     const chapters = await Promise.all(
       listResult.Contents
         .filter(obj => obj.Key.endsWith('.opus') || obj.Key.endsWith('.mp3'))
@@ -79,13 +74,9 @@ export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
 
           const url = await getSignedUrl(r2Client, command, { expiresIn });
           
-          // Extract chapter number from filename
           const match = obj.Key.match(/chapter[_-](\d+)/i);
           const chapterNumber = match ? parseInt(match[1]) : index + 1;
-          
           const filename = obj.Key.split('/').pop();
-
-          console.log(`📄 Chapter ${chapterNumber}: ${filename}`);
 
           return {
             number: chapterNumber,
@@ -113,9 +104,7 @@ export async function getAudioChapterUrls(productSlug, expiresIn = 3600) {
  */
 export async function getSummaryAudioUrl(productSlug, expiresIn = 3600) {
   try {
-    // FIXED: Correct path - summaries/{slug}/audio/{slug}_SUMMARY.opus
     const key = `summaries/${productSlug}/audio/${productSlug}_SUMMARY.opus`;
-
     console.log('🎧 Looking for summary audio:', key);
 
     const command = new GetObjectCommand({
