@@ -194,9 +194,18 @@ const WORKER_URL = import.meta.env.DEV
 	 * Download individual chapter
 	 */
 	async function downloadChapter(chapter) {
-		window.open(chapter.url, '_blank');
-		await recordDownload();
-	}
+  const downloadUrl = `/download/${data.purchase.id}?forceDownload=true&chapter=${chapter.number}`;
+
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  // Optional: set a nice filename (browser will use server's header anyway)
+  link.download = `${data.purchase.product.slug} - Chapter ${chapter.number}.opus`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  await recordDownload();
+}
 
 	/**
 	 * Copy chapter link to clipboard
