@@ -1,6 +1,11 @@
 <script>
+	import { ChevronRight, ChevronDown, Star, TrendingUp, Sparkles, Zap, BookOpen, Headphones, Clock } from '@lucide/svelte';
+	
 	let { data } = $props();
-  const publicUrl ="https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/"
+	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
+	
+	let showAllCategories = $state(false);
+	const visibleCategoriesCount = 6;
 
 	function formatDuration(seconds) {
 		const hours = Math.floor(seconds / 3600);
@@ -8,148 +13,196 @@
 		if (hours > 0) return `${hours}h ${minutes}m`;
 		return `${minutes}m`;
 	}
-  console.log(data)
 </script>
 
 <div class="bg-background">
 	<!-- Hero Section -->
-	<section class="bg-gradient-to-b from-primary/10 to-background py-12 md:py-20">
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-			<div class="text-center">
-				<h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 md:mb-6">
-					Welcome to Klarify
+	<section class="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-background py-12 md:py-20 lg:py-24">
+		<!-- Animated Background Elements -->
+		<div class="absolute inset-0 overflow-hidden pointer-events-none">
+			<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse"></div>
+			<div class="absolute -bottom-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+		</div>
+		
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+			<div class="text-center max-w-4xl mx-auto">
+				<!-- Badge -->
+				<div class="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-primary text-sm font-medium mb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+					<Sparkles class="w-4 h-4" />
+					<span>Kenya's Premier Digital Library</span>
+				</div>
+				
+				<h1 class="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-6 leading-tight animate-in fade-in slide-in-from-bottom-4 duration-700" style="animation-delay: 100ms;">
+					Learn Smarter with <br />
+					<span class="text-primary">Audiobooks & eBooks</span>
 				</h1>
-				<p class="text-lg md:text-xl text-muted-foreground mb-6 md:mb-8 max-w-2xl mx-auto">
-					Discover thousands of audiobooks, ebooks, and magazines. 
-					Learn on the go with affordable digital content.
+				
+				<p class="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-700" style="animation-delay: 200ms;">
+					Access thousands of books, audiobooks, and quick summaries. 
+					<span class="text-foreground font-medium">Learn on the go</span> with affordable digital content starting at just KSh 50.
 				</p>
 				
-				{#if !data.user}
-					<div class="flex flex-col sm:flex-row justify-center gap-3 md:gap-4">
+				<div class="flex flex-col sm:flex-row justify-center gap-4 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700" style="animation-delay: 300ms;">
+					{#if !data.user}
 						<a
 							href="/signup"
-							class="px-6 md:px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+							class="group px-8 py-4 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-2"
 						>
-							Get Started
+							Start Learning Free
+							<ChevronRight class="w-5 h-5 group-hover:translate-x-1 transition-transform" />
 						</a>
 						<a
 							href="/products"
-							class="px-6 md:px-8 py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:bg-secondary/80 transition-colors"
+							class="px-8 py-4 bg-card border-2 border-border text-foreground font-semibold rounded-xl hover:border-primary transition-all flex items-center justify-center gap-2"
 						>
-							Browse Content
+							<BookOpen class="w-5 h-5" />
+							Browse Library
 						</a>
-					</div>
-				{:else}
-					<a
-						href="/products"
-						class="inline-block px-6 md:px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors"
-					>
-						Browse Content
-					</a>
-				{/if}
-			</div>
-		</div>
-	</section>
-
-	<!-- Stats Section -->
-	<section class="py-8 md:py-16 bg-card border-y border-border">
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-			<div class="grid grid-cols-3 gap-4 md:gap-8 text-center">
-				<div>
-					<div class="text-3xl md:text-4xl font-bold text-primary mb-2">1000+</div>
-					<div class="text-sm md:text-base text-muted-foreground">Books Available</div>
-				</div>
-				<div>
-					<div class="text-3xl md:text-4xl font-bold text-primary mb-2">KSh 50</div>
-					<div class="text-sm md:text-base text-muted-foreground">Starting From</div>
-				</div>
-				<div>
-					<div class="text-3xl md:text-4xl font-bold text-primary mb-2">24/7</div>
-					<div class="text-sm md:text-base text-muted-foreground">Instant Access</div>
-				</div>
-			</div>
-		</div>
-	</section>
-
-	<!-- Categories Section -->
-	{#if data.categories.length > 0}
-		<section class="py-12 md:py-16 bg-muted/50">
-			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<h2 class="text-2xl md:text-3xl font-bold text-foreground mb-6 md:mb-8">Browse by Category</h2>
-				
-				<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
-					{#each data.categories as category}
+					{:else}
 						<a
-							href="/products?category={category.slug}"
-							class="group bg-card border border-border rounded-lg p-4 md:p-6 hover:shadow-lg hover:border-primary transition-all text-center"
+							href="/products"
+							class="group px-8 py-4 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-2"
 						>
-							<div class="text-3xl md:text-4xl mb-2 md:mb-3 hidden">{category.icon}</div>
-							<h3 class="font-semibold text-sm md:text-base text-foreground group-hover:text-primary transition-colors mb-1">
-								{category.name}
-							</h3>
-							<p class="text-xs md:text-sm text-muted-foreground">
-								{category._count.products} books
-							</p>
+							Explore Library
+							<ChevronRight class="w-5 h-5 group-hover:translate-x-1 transition-transform" />
 						</a>
-					{/each}
+					{/if}
+				</div>
+
+				<!-- Stats -->
+				<div class="grid grid-cols-3 gap-6 md:gap-12 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700" style="animation-delay: 400ms;">
+					<div class="text-center">
+						<div class="text-3xl md:text-4xl font-bold text-primary mb-2">1000+</div>
+						<div class="text-sm md:text-base text-muted-foreground">Digital Books</div>
+					</div>
+					<div class="text-center border-x border-border">
+						<div class="text-3xl md:text-4xl font-bold text-primary mb-2">KSh 50</div>
+						<div class="text-sm md:text-base text-muted-foreground">Starting Price</div>
+					</div>
+					<div class="text-center">
+						<div class="text-3xl md:text-4xl font-bold text-primary mb-2">24/7</div>
+						<div class="text-sm md:text-base text-muted-foreground">Instant Access</div>
+					</div>
 				</div>
 			</div>
-		</section>
-	{/if}
+		</div>
+	</section>
 
-	<!-- Featured Products Section -->
-	<section class="py-12 md:py-20">
+	<!-- Featured Content Types -->
+	<section class="py-12 md:py-16">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-			<div class="flex items-center justify-between mb-6 md:mb-8">
-				<h2 class="text-2xl md:text-3xl font-bold text-foreground">Featured Content</h2>
-				<a href="/products" class="text-sm md:text-base text-primary hover:underline">View All →</a>
+			<div class="grid md:grid-cols-3 gap-6">
+				<!-- eBooks -->
+				<a href="/products?type=EBOOK" class="group relative overflow-hidden bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-[1.02]">
+					<div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
+					<BookOpen class="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4 relative z-10" />
+					<h3 class="text-xl font-bold text-foreground mb-2 relative z-10">eBooks</h3>
+					<p class="text-muted-foreground mb-4 relative z-10">Read anytime, anywhere on any device</p>
+					<div class="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium relative z-10">
+						Browse eBooks
+						<ChevronRight class="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+					</div>
+				</a>
+
+				<!-- Audiobooks -->
+				<a href="/products?type=AUDIOBOOK" class="group relative overflow-hidden bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-[1.02]">
+					<div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl"></div>
+					<Headphones class="w-12 h-12 text-purple-600 dark:text-purple-400 mb-4 relative z-10" />
+					<h3 class="text-xl font-bold text-foreground mb-2 relative z-10">Audiobooks</h3>
+					<p class="text-muted-foreground mb-4 relative z-10">Listen while you commute or exercise</p>
+					<div class="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-medium relative z-10">
+						Browse Audiobooks
+						<ChevronRight class="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+					</div>
+				</a>
+
+				<!-- Summaries -->
+				<a href="/products?type=SUMMARY" class="group relative overflow-hidden bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-2xl p-6 hover:shadow-xl transition-all hover:scale-[1.02]">
+					<div class="absolute top-4 right-4 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+						NEW
+					</div>
+					<div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl"></div>
+					<Zap class="w-12 h-12 text-amber-600 dark:text-amber-400 mb-4 relative z-10" />
+					<h3 class="text-xl font-bold text-foreground mb-2 relative z-10">Quick Summaries</h3>
+					<p class="text-muted-foreground mb-4 relative z-10">Learn key insights in 15-20 minutes</p>
+					<div class="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium relative z-10">
+						Try Summaries
+						<ChevronRight class="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+					</div>
+				</a>
+			</div>
+		</div>
+	</section>
+
+	<!-- Featured Products -->
+	<section class="py-12 md:py-20 bg-muted/20">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<div class="flex items-center justify-between mb-8">
+				<div>
+					<h2 class="text-2xl md:text-3xl font-bold text-foreground mb-2">Featured This Week</h2>
+					<p class="text-muted-foreground">Handpicked books our readers love</p>
+				</div>
+				<a href="/products" class="hidden md:flex items-center gap-2 text-primary hover:underline font-medium">
+					View All
+					<ChevronRight class="w-4 h-4" />
+				</a>
 			</div>
 			
 			{#if data.featuredProducts.length === 0}
-				<div class="text-center py-12 md:py-16 text-muted-foreground">
-					<svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-					</svg>
-					<p class="text-base md:text-lg">No featured products yet. Check back soon!</p>
+				<div class="text-center py-16 text-muted-foreground">
+					<BookOpen class="w-16 h-16 mx-auto mb-4 opacity-50" />
+					<p class="text-lg">No featured products yet. Check back soon!</p>
 				</div>
 			{:else}
-				<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
+				<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
 					{#each data.featuredProducts as product}
 						<a
 							href="/products/{product.slug}"
-							class="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-all"
+							class="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-xl hover:border-primary/50 transition-all duration-300"
 						>
-							<!-- Cover Image Placeholder -->
-							<div class="aspect-[2/3] bg-muted flex items-center justify-center">
-                <img src={publicUrl+product.coverImage} alt="">
-								<svg class="w-12 md:w-16 h-12 md:h-16 text-muted-foreground opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-								</svg>
+							<!-- Cover -->
+							<div class="aspect-[2/3] bg-muted relative overflow-hidden">
+								{#if product.coverImage}
+									<img 
+										src={publicUrl + product.coverImage} 
+										alt={product.title}
+										class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+									/>
+								{:else}
+									<div class="w-full h-full flex items-center justify-center">
+										<BookOpen class="w-12 md:w-16 h-12 md:h-16 text-muted-foreground opacity-50" />
+									</div>
+								{/if}
+								
+								<!-- Featured Badge -->
+								<div class="absolute top-2 right-2">
+									<span class="flex items-center gap-1 px-2 py-1 bg-yellow-500 text-white text-xs font-bold rounded shadow-lg">
+										<Star class="w-3 h-3 fill-current" />
+										Featured
+									</span>
+								</div>
 							</div>
 
+							<!-- Content -->
 							<div class="p-3 md:p-4">
-								<!-- Featured Badge -->
-								<span class="inline-block px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded mb-2">
-									⭐ Featured
-								</span>
-
-								<!-- Title -->
-								<h3 class="font-semibold text-sm md:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">
+								<h3 class="font-semibold text-sm md:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1 min-h-[2.5rem] md:min-h-[3rem]">
 									{product.title}
 								</h3>
-
-								<!-- Author -->
+								
 								<p class="text-xs md:text-sm text-muted-foreground mb-2 truncate">
-									by {product.author}
+									{product.author}
 								</p>
 
-								<!-- Type & Info -->
+								<!-- Meta -->
 								<div class="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-									<span class="px-2 py-0.5 bg-secondary rounded truncate">
+									<span class="px-2 py-0.5 bg-secondary rounded text-[10px] md:text-xs truncate">
 										{product.type}
 									</span>
 									{#if product.duration}
-										<span class="hidden sm:inline">{formatDuration(product.duration)}</span>
+										<span class="hidden sm:flex items-center gap-1">
+											<Clock class="w-3 h-3" />
+											{formatDuration(product.duration)}
+										</span>
 									{:else if product.pageCount}
 										<span class="hidden sm:inline">{product.pageCount}p</span>
 									{/if}
@@ -157,29 +210,13 @@
 
 								<!-- Price -->
 								<div class="flex items-center justify-between">
-									<div>
-										{#if product.type === "BUNDLE"}
-											<div class="text-base md:text-lg font-bold text-primary">
-												KSh {product.bundlePrice}
-											</div>
-										{:else if product.type === "AUDIOBOOK"}
-											<div class="text-base md:text-lg font-bold text-primary">
-												KSh {product.audioPrice}
-											</div>
-										{:else}
-											<div class="text-base md:text-lg font-bold text-primary">
-												KSh {product.pdfPrice}
-											</div>
-										{/if}
+									<div class="text-base md:text-lg font-bold text-primary">
+										KSh {product.type === "BUNDLE" ? product.bundlePrice : product.type === "AUDIOBOOK" ? product.audioPrice : product.pdfPrice}
 									</div>
-
-									<!-- Rating -->
 									{#if product.rating > 0}
-										<div class="flex items-center gap-1">
-											<svg class="w-3 h-3 md:w-4 md:h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-												<path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-											</svg>
-											<span class="text-xs md:text-sm">{product.rating.toFixed(1)}</span>
+										<div class="flex items-center gap-1 text-xs">
+											<Star class="w-3 h-3 md:w-4 md:h-4 text-yellow-500 fill-current" />
+											<span class="font-medium">{product.rating.toFixed(1)}</span>
 										</div>
 									{/if}
 								</div>
@@ -187,25 +224,92 @@
 						</a>
 					{/each}
 				</div>
+
+				<!-- Mobile View All -->
+				<div class="mt-8 text-center md:hidden">
+					<a href="/products" class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg">
+						View All Products
+						<ChevronRight class="w-4 h-4" />
+					</a>
+				</div>
 			{/if}
 		</div>
 	</section>
 
 	<!-- CTA Section -->
 	{#if !data.user}
-		<section class="py-12 md:py-20 bg-primary text-primary-foreground">
-			<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-				<h2 class="text-3xl md:text-4xl font-bold mb-4">Start Reading Today</h2>
-				<p class="text-lg md:text-xl opacity-90 mb-8">
-					Join thousands of readers accessing quality content at affordable prices
+		<section class="py-16 md:py-24 bg-gradient-to-br from-primary via-primary/95 to-primary/90 text-primary-foreground relative overflow-hidden">
+			<!-- Background Pattern -->
+			<div class="absolute inset-0 opacity-10">
+				<div class="absolute inset-0" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 40px 40px;"></div>
+			</div>
+			
+			<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+				<Sparkles class="w-12 h-12 mx-auto mb-6 animate-pulse" />
+				<h2 class="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">Ready to Start Your Learning Journey?</h2>
+				<p class="text-lg md:text-xl opacity-90 mb-8 max-w-2xl mx-auto">
+					Join thousands of readers accessing quality books, audiobooks, and summaries at affordable prices. Start learning today!
 				</p>
-				<a
-					href="/signup"
-					class="inline-block px-8 py-3 bg-background text-foreground font-semibold rounded-lg hover:bg-background/90 transition-colors shadow-lg"
-				>
-					Create Free Account
-				</a>
+				<div class="flex flex-col sm:flex-row gap-4 justify-center">
+					<a
+						href="/signup"
+						class="group px-8 py-4 bg-background text-foreground font-semibold rounded-xl hover:bg-background/90 transition-all shadow-xl hover:scale-105 flex items-center justify-center gap-2"
+					>
+						Create Free Account
+						<ChevronRight class="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+					</a>
+					<a
+						href="/products"
+						class="px-8 py-4 bg-primary-foreground/10 backdrop-blur-sm border-2 border-primary-foreground/20 text-primary-foreground font-semibold rounded-xl hover:bg-primary-foreground/20 transition-all flex items-center justify-center gap-2"
+					>
+						<BookOpen class="w-5 h-5" />
+						Browse Library
+					</a>
+				</div>
 			</div>
 		</section>
 	{/if}
 </div>
+
+	<!-- Categories Section - Compact Pills -->
+	{#if data.categories.length > 0}
+		<section class="py-8 md:py-12 bg-muted/30 border-y border-border">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex items-center justify-between mb-6">
+					<h2 class="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+						<TrendingUp class="w-5 h-5 md:w-6 md:h-6 text-primary" />
+						Popular Categories
+					</h2>
+					
+					{#if data.categories.length > visibleCategoriesCount}
+						<button
+							onclick={() => showAllCategories = !showAllCategories}
+							class="flex items-center gap-1 text-sm text-primary hover:underline font-medium"
+						>
+							{showAllCategories ? 'Show Less' : 'View All'}
+							<ChevronDown class="w-4 h-4 transition-transform {showAllCategories ? 'rotate-180' : ''}" />
+						</button>
+					{/if}
+				</div>
+				
+				<!-- Categories Pills -->
+				<div class="flex flex-wrap gap-2 md:gap-3">
+					{#each data.categories.slice(0, showAllCategories ? data.categories.length : visibleCategoriesCount) as category}
+						<a
+							href="/products?category={category.slug}"
+							class="group inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full hover:border-primary hover:shadow-md transition-all"
+						>
+							<span class="text-2xl">{category.icon || '📚'}</span>
+							<span class="font-medium text-foreground group-hover:text-primary transition-colors">
+								{category.name}
+							</span>
+							<span class="px-2 py-0.5 bg-primary/10 text-primary text-xs font-bold rounded-full">
+								{category._count.products}
+							</span>
+						</a>
+					{/each}
+				</div>
+			</div>
+		</section>
+	{/if}
+

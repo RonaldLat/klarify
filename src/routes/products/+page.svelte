@@ -81,23 +81,6 @@
 				</div>
 			</div>
 
-			<!-- Categories -->
-			{#if data.categories.length > 0}
-				<div class="mt-4 flex flex-wrap gap-2">
-					<span class="text-sm text-muted-foreground">Categories:</span>
-					{#each data.categories as category}
-						<a
-							href="/products?category={category.slug}{data.type ? `&type=${data.type}` : ''}"
-							class="px-3 py-1 rounded-full text-xs font-medium transition-colors
-								{data.categorySlug === category.slug 
-									? (data.type === 'SUMMARY' ? 'bg-amber-500 text-white' : 'bg-primary text-primary-foreground')
-									: 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
-						>
-							{category.icon} {category.name}
-						</a>
-					{/each}
-				</div>
-			{/if}
 		</div>
 	</section>
 
@@ -198,6 +181,25 @@
 					</div>
 				{/if}
 			{/if}
+
+			<!-- Categories -->
+			{#if data.categories.length > 0}
+				<div class="mt-12 flex flex-wrap gap-2">
+					<span class="text-sm text-muted-foreground">Categories:</span>
+					{#each data.categories as category}
+						<a
+							href="/products?category={category.slug}{data.type ? `&type=${data.type}` : ''}"
+							class="px-3 py-1 rounded-full text-xs font-medium transition-colors
+								{data.categorySlug === category.slug 
+									? (data.type === 'SUMMARY' ? 'bg-amber-500 text-white' : 'bg-primary text-primary-foreground')
+									: 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}"
+						>
+							{category.icon} {category.name}
+						</a>
+					{/each}
+				</div>
+			{/if}
 		</div>
+
 	</section>
 </div>
