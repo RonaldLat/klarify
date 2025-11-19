@@ -189,41 +189,42 @@
 
 <header class="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
 	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-		<div class="flex justify-between items-center h-16">
-			<!-- Mobile Menu Button -->
-			<button
-				onclick={() => mobileMenuOpen = !mobileMenuOpen}
-				class="lg:hidden p-2 hover:bg-accent rounded-md transition-colors"
-				aria-label="Menu"
-			>
-				<Menu class="w-6 h-6" />
-			</button>
+		<!-- Mobile & Desktop Combined Row -->
+		<div class="flex justify-between items-center h-16 gap-3">
+			<!-- Left: Menu Button (Mobile) + Logo -->
+			<div class="flex items-center gap-3 min-w-0">
+				<button
+					onclick={() => mobileMenuOpen = !mobileMenuOpen}
+					class="lg:hidden p-2 hover:bg-accent rounded-md transition-colors flex-shrink-0"
+					aria-label="Menu"
+				>
+					<Menu class="w-5 h-5" />
+				</button>
 
-			<!-- Logo & Desktop Nav -->
-			<div class="flex items-center gap-8">
-				<a href="/" class="flex items-center gap-2 group">
-					<span class="text-xl md:text-2xl font-bold text-primary group-hover:text-primary/80 transition-colors">
+				<a href="/" class="flex items-center gap-2 group flex-shrink-0">
+					<span class="text-lg sm:text-xl md:text-2xl font-bold text-primary group-hover:text-primary/80 transition-colors">
 						Klarify
 					</span>
 				</a>
 				
-				<nav class="hidden lg:flex items-center gap-6">
+				<!-- Desktop Nav -->
+				<nav class="hidden lg:flex items-center gap-6 ml-4">
 					<a 
 						href="/products" 
-						class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+						class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
 					>
 						Browse
 					</a>
 					<a 
 						href="/categories" 
-						class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+						class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
 					>
 						Categories
 					</a>
 					{#if user}
 						<a 
 							href="/my-library" 
-							class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+							class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
 						>
 							My Library
 						</a>
@@ -231,10 +232,10 @@
 				</nav>
 			</div>
 
-			<!-- Desktop Search -->
-			<div class="hidden md:flex flex-1 max-w-md mx-8 search-container relative">
-				<div class="relative w-full">
-					<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+			<!-- Center: Search (All Screens) -->
+			<div class="flex-1 max-w-sm md:max-w-md lg:max-w-lg search-container relative">
+				<div class="relative">
+					<Search class="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground pointer-events-none" />
 					
 					<input
 						bind:this={searchInput}
@@ -243,22 +244,22 @@
 						onkeydown={handleSearchKeydown}
 						onfocus={() => searchQuery.length >= 2 && (showSearchResults = true)}
 						type="search"
-						placeholder="Search books, authors, summaries..."
-						class="w-full pl-10 pr-12 py-2.5 rounded-lg border border-input bg-background text-foreground text-base
+						placeholder="Search..."
+						class="w-full pl-8 md:pl-10 pr-8 md:pr-12 py-2 md:py-2.5 rounded-lg border border-input bg-background text-foreground text-sm md:text-base
 							focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
 							transition-all duration-200 placeholder:text-muted-foreground"
 					/>
 					
-					<div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+					<div class="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
 						{#if isSearching}
-							<div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+							<div class="w-3.5 h-3.5 md:w-4 md:h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
 						{:else if searchQuery}
 							<button
 								onclick={clearSearch}
 								class="p-1 hover:bg-accent rounded-full transition-colors"
 								aria-label="Clear search"
 							>
-								<X class="w-4 h-4 text-muted-foreground" />
+								<X class="w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground" />
 							</button>
 						{/if}
 					</div>
@@ -269,16 +270,16 @@
 					<div class="absolute z-50 w-full mt-2 top-full bg-card border border-border rounded-lg shadow-2xl overflow-hidden
 						animate-in fade-in slide-in-from-top-2 duration-200">
 						{#if searchResults.length > 0}
-							<div class="max-h-96 overflow-y-auto">
+							<div class="max-h-[60vh] md:max-h-96 overflow-y-auto">
 								{#each searchResults as product, index}
 									{@const TypeIcon = getTypeIcon(product)}
 									<button
 										onclick={() => navigateToProduct(product)}
-										class="w-full flex items-center gap-3 p-4 hover:bg-accent transition-colors text-left
+										class="w-full flex items-center gap-2.5 md:gap-3 p-3 md:p-4 hover:bg-accent transition-colors text-left
 											{selectedIndex === index ? 'bg-accent' : ''}
 											border-b border-border last:border-b-0"
 									>
-										<div class="flex-shrink-0 w-12 h-16 bg-muted rounded overflow-hidden">
+										<div class="flex-shrink-0 w-10 h-14 md:w-12 md:h-16 bg-muted rounded overflow-hidden">
 											{#if product.coverImage}
 												<img 
 													src={publicUrl + product.coverImage}
@@ -287,39 +288,39 @@
 												/>
 											{:else}
 												<div class="w-full h-full flex items-center justify-center">
-													<Book class="w-6 h-6 text-muted-foreground opacity-50" />
+													<Book class="w-5 h-5 md:w-6 md:h-6 text-muted-foreground opacity-50" />
 												</div>
 											{/if}
 										</div>
 										
 										<div class="flex-1 min-w-0">
-											<div class="flex items-start gap-2 mb-1">
-												<h4 class="font-semibold text-sm text-foreground line-clamp-1 flex-1">
+											<div class="flex items-start gap-2 mb-0.5 md:mb-1">
+												<h4 class="font-semibold text-xs md:text-sm text-foreground line-clamp-1 flex-1">
 													{product.title}
 												</h4>
-												<TypeIcon class="w-4 h-4 flex-shrink-0 {product.isSummary ? 'text-amber-600' : 'text-primary'}" />
+												<TypeIcon class="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 {product.isSummary ? 'text-amber-600' : 'text-primary'}" />
 											</div>
 											
-											<p class="text-xs text-muted-foreground truncate mb-1">
+											<p class="text-[10px] md:text-xs text-muted-foreground truncate mb-1">
 												{product.author}
 											</p>
 											
 											<div class="flex items-center justify-between">
-												<div class="flex items-center gap-2 text-xs text-muted-foreground">
+												<div class="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground">
 													{#if product.rating > 0}
 														<span class="flex items-center gap-0.5">
-															<Star class="w-3 h-3 text-yellow-500 fill-current" />
+															<Star class="w-2.5 h-2.5 md:w-3 md:h-3 text-yellow-500 fill-current" />
 															{product.rating.toFixed(1)}
 														</span>
 													{/if}
 													{#if product.duration}
-														<span>• {formatDuration(product.duration)}</span>
+														<span class="hidden sm:inline">• {formatDuration(product.duration)}</span>
 													{:else if product.pageCount}
-														<span>• {product.pageCount}p</span>
+														<span class="hidden sm:inline">• {product.pageCount}p</span>
 													{/if}
 												</div>
 												
-												<span class="text-sm font-bold {product.isSummary ? 'text-amber-600' : 'text-primary'}">
+												<span class="text-xs md:text-sm font-bold {product.isSummary ? 'text-amber-600' : 'text-primary'}">
 													KSh {getDisplayPrice(product)}
 												</span>
 											</div>
@@ -330,13 +331,13 @@
 						{/if}
 						
 						{#if searchAuthors.length > 0}
-							<div class="border-t border-border bg-muted/30 p-3">
-								<p class="text-xs text-muted-foreground px-2 mb-2">Authors:</p>
-								<div class="flex flex-wrap gap-2">
+							<div class="border-t border-border bg-muted/30 p-2 md:p-3">
+								<p class="text-[10px] md:text-xs text-muted-foreground px-2 mb-2">Authors:</p>
+								<div class="flex flex-wrap gap-1.5 md:gap-2">
 									{#each searchAuthors as author}
 										<button
 											onclick={() => searchByAuthor(author)}
-											class="px-3 py-1.5 bg-background border border-border rounded-full text-sm
+											class="px-2 md:px-3 py-1 md:py-1.5 bg-background border border-border rounded-full text-xs md:text-sm
 												hover:bg-accent hover:border-primary transition-colors"
 										>
 											{author}
@@ -348,21 +349,21 @@
 						
 						<button
 							onclick={performFullSearch}
-							class="w-full flex items-center justify-center gap-2 p-3 bg-primary/5 hover:bg-primary/10 
-								text-primary font-medium text-sm transition-colors"
+							class="w-full flex items-center justify-center gap-2 p-2.5 md:p-3 bg-primary/5 hover:bg-primary/10 
+								text-primary font-medium text-xs md:text-sm transition-colors"
 						>
-							View all results for "{searchQuery}"
+							View all results for "{searchQuery.slice(0, 20)}{searchQuery.length > 20 ? '...' : ''}"
 						</button>
 					</div>
 				{:else if showSearchResults && searchQuery.length >= 2 && !isSearching}
-					<div class="absolute z-50 w-full mt-2 top-full bg-card border border-border rounded-lg shadow-2xl p-6
+					<div class="absolute z-50 w-full mt-2 top-full bg-card border border-border rounded-lg shadow-2xl p-4 md:p-6
 						animate-in fade-in slide-in-from-top-2 duration-200">
 						<div class="text-center">
-							<Search class="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-							<p class="text-sm text-muted-foreground mb-2">No results found for "{searchQuery}"</p>
+							<Search class="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 text-muted-foreground opacity-50" />
+							<p class="text-xs md:text-sm text-muted-foreground mb-2">No results found for "{searchQuery}"</p>
 							<button
 								onclick={performFullSearch}
-								class="text-sm text-primary hover:underline"
+								class="text-xs md:text-sm text-primary hover:underline"
 							>
 								Search in all products
 							</button>
@@ -371,8 +372,8 @@
 				{/if}
 			</div>
 
-			<!-- Right Side Actions -->
-			<div class="flex items-center gap-2 md:gap-4">
+			<!-- Right: Cart + User Menu -->
+			<div class="flex items-center gap-2 flex-shrink-0">
 				{#if user}
 					<a 
 						href="/cart" 
@@ -470,83 +471,12 @@
 					</a>
 					<a
 						href="/signup"
-						class="px-3 md:px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
+						class="px-3 md:px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors whitespace-nowrap"
 					>
 						Sign Up
 					</a>
 				{/if}
 			</div>
-		</div>
-
-		<!-- Mobile Search -->
-		<div class="md:hidden pb-3 search-container relative">
-			<div class="relative">
-				<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
-				
-				<input
-					bind:value={searchQuery}
-					oninput={handleSearchInput}
-					onkeydown={handleSearchKeydown}
-					onfocus={() => searchQuery.length >= 2 && (showSearchResults = true)}
-					type="search"
-					placeholder="Search..."
-					class="w-full pl-10 pr-10 py-2 rounded-lg border border-input bg-background text-foreground
-						focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-				/>
-				
-				<div class="absolute right-3 top-1/2 -translate-y-1/2">
-					{#if isSearching}
-						<div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-					{:else if searchQuery}
-						<button onclick={clearSearch} class="p-1 hover:bg-accent rounded-full transition-colors">
-							<X class="w-4 h-4 text-muted-foreground" />
-						</button>
-					{/if}
-				</div>
-			</div>
-			
-			<!-- Mobile Search Results -->
-			{#if showSearchResults && (searchResults.length > 0 || searchAuthors.length > 0)}
-				<div class="absolute z-50 w-full mt-2 bg-card border border-border rounded-lg shadow-2xl overflow-hidden">
-					{#if searchResults.length > 0}
-						<div class="max-h-[60vh] overflow-y-auto">
-							{#each searchResults as product, index}
-								{@const TypeIcon = getTypeIcon(product)}
-								<button
-									onclick={() => navigateToProduct(product)}
-									class="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors text-left
-										{selectedIndex === index ? 'bg-accent' : ''} border-b border-border last:border-b-0"
-								>
-									<div class="flex-shrink-0 w-10 h-14 bg-muted rounded overflow-hidden">
-										{#if product.coverImage}
-											<img src={publicUrl + product.coverImage} alt={product.title} class="w-full h-full object-cover" />
-										{/if}
-									</div>
-									
-									<div class="flex-1 min-w-0">
-										<div class="flex items-start gap-2 mb-0.5">
-											<h4 class="font-semibold text-sm text-foreground line-clamp-1 flex-1">{product.title}</h4>
-											<TypeIcon class="w-3.5 h-3.5 flex-shrink-0 {product.isSummary ? 'text-amber-600' : 'text-primary'}" />
-										</div>
-										<p class="text-xs text-muted-foreground truncate mb-1">{product.author}</p>
-										<span class="text-sm font-bold {product.isSummary ? 'text-amber-600' : 'text-primary'}">
-											KSh {getDisplayPrice(product)}
-										</span>
-									</div>
-								</button>
-							{/each}
-						</div>
-					{/if}
-					
-					<button onclick={performFullSearch} class="w-full p-3 bg-primary/5 text-primary font-medium text-sm">
-						View all results
-					</button>
-				</div>
-			{:else if showSearchResults && searchQuery.length >= 2 && !isSearching}
-				<div class="absolute z-50 w-full mt-2 bg-card border border-border rounded-lg shadow-2xl p-4 text-center">
-					<p class="text-sm text-muted-foreground">No results found</p>
-				</div>
-			{/if}
 		</div>
 	</div>
 </header>
