@@ -1,6 +1,8 @@
 <script>
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { slide } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
 	import { Zap, Download, Clock, Check, Headphones, Book, AlertCircle, Loader2, ChevronDown, Copy, CheckCircle, X } from '@lucide/svelte';
 
@@ -24,7 +26,7 @@
 	let isDownloadingComplete = $state(false);
 	let downloadProgress = $state(0);
 	let workerError = $state(null);
-	let abortController = $state(null); // NEW: For canceling downloads
+	let abortController = $state(null);
 	
 	// Chapter accordion state
 	let showChapters = $state(false);
@@ -96,13 +98,9 @@
 		}
 	}
 
-	/**
-	 * Download complete audiobook with cancel support
-	 */
 	async function downloadCompleteAudiobook() {
 		if (!audioData || isDownloadingComplete) return;
 		
-		// Create new abort controller
 		abortController = new AbortController();
 		
 		isDownloadingComplete = true;
@@ -120,7 +118,7 @@
 					productSlug: data.purchase.product.slug,
 					format: audioData.chapters[0].url.split('.').pop().split('?')[0],
 				}),
-				signal: abortController.signal, // Add abort signal
+				signal: abortController.signal,
 			});
 
 			if (!response.ok) {
@@ -128,7 +126,6 @@
 				throw new Error(errorData.error || 'Download failed');
 			}
 
-			// Stream the response
 			const reader = response.body.getReader();
 			const contentLength = +response.headers.get('Content-Length') || 0;
 			
@@ -151,14 +148,12 @@
 
 			downloadProgress = 100;
 
-			// Create blob and trigger download
 			const blob = new Blob(chunks);
 			const url = URL.createObjectURL(blob);
 			
 			const extension = audioData.chapters[0].url.split('.').pop().split('?')[0];
 			const filename = `${data.purchase.product.slug}-complete.${extension}`;
 			
-			// IMPROVED: Force download instead of playing
 			const link = document.createElement('a');
 			link.href = url;
 			link.download = filename;
@@ -167,10 +162,8 @@
 			link.click();
 			document.body.removeChild(link);
 			
-			// Cleanup
 			setTimeout(() => URL.revokeObjectURL(url), 100);
 			
-			// Record download
 			await recordDownload();
 			
 		} catch (error) {
@@ -190,9 +183,6 @@
 		}
 	}
 
-	/**
-	 * Cancel ongoing download
-	 */
 	function cancelDownload() {
 		if (abortController) {
 			abortController.abort();
@@ -200,11 +190,7 @@
 		}
 	}
 
-	/**
-	 * Download single file with proper download attribute
-	 */
 	async function downloadSingleFile(url, filename) {
-		// Create temporary link with download attribute
 		const link = document.createElement('a');
 		link.href = url;
 		link.download = filename;
@@ -216,34 +202,18 @@
 		await recordDownload();
 	}
 
-	/**
-	 * Download chapter with proper download prompt
-	 */
-	// async function downloadChapter(chapter) {
-	// 	// Use download attribute to force download
-	// 	const link = document.createElement('a');
-	// 	link.href = chapter.url;
-	// 	link.download = chapter.filename || `chapter-${chapter.number}.opus`;
-	// 	link.style.display = 'none';
-	// 	document.body.appendChild(link);
-	// 	link.click();
-	// 	document.body.removeChild(link);
-	//
-	// 	await recordDownload();
-	// }
-async function downloadChapter(chapter) {
-  const downloadUrl = `/download/${data.purchase.id}?forceDownload=true&chapter=${chapter.number}`;
+	async function downloadChapter(chapter) {
+		const downloadUrl = `/download/${data.purchase.id}?forceDownload=true&chapter=${chapter.number}`;
 
-  const link = document.createElement("a");
-  link.href = downloadUrl;
-  // filename is set by the server, but we can hint it
-  link.download = ""; 
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+		const link = document.createElement("a");
+		link.href = downloadUrl;
+		link.download = "";
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
 
-  await recordDownload();
-}
+		await recordDownload();
+	}
 
 	async function copyChapterLink(chapter) {
 		try {
@@ -502,11 +472,11 @@ async function downloadChapter(chapter) {
 											</div>
 										</div>
 									</div>
-									<ChevronDown class="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground transition-transform flex-shrink-0 {showChapters ? 'rotate-180' : ''}" />
+									<ChevronDown class="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground transition-transform duration-300 flex-shrink-0 {showChapters ? 'rotate-180' : ''}" />
 								</button>
 
 								{#if showChapters}
-									<div class="border-t border-border">
+									<div class="border-t border-border" transition:slide={{ duration: 300, easing: cubicOut }}>
 										<div class="p-3 sm:p-4 bg-muted/30">
 											<p class="text-xs text-muted-foreground mb-3 sm:mb-4 px-1">
 												💡 Tip: Individual chapters download instantly. Use this if you want specific chapters or if the complete download fails.
@@ -533,17 +503,6 @@ async function downloadChapter(chapter) {
 															>
 																<Download class="w-3 h-3" />
 																<span class="hidden sm:inline">Download</span>
-															</button>
-															<button
-																onclick={() => copyChapterLink(chapter)}
-																class="px-2 sm:px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-medium rounded transition-colors"
-																title="Copy download link"
-															>
-																{#if copiedChapter === chapter.number}
-																	<CheckCircle class="w-3 h-3 text-green-600" />
-																{:else}
-																	<Copy class="w-3 h-3" />
-																{/if}
 															</button>
 														</div>
 													</div>
