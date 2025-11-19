@@ -263,6 +263,8 @@
     border: 1px solid var(--color-border);
     border-top-left-radius: var(--radius-lg);
     border-top-right-radius: var(--radius-lg);
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
     overflow: visible;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   "
