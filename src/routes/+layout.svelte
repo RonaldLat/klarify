@@ -1,5 +1,6 @@
 <script>
 	import Header from "$lib/components/Header.svelte";
+  import { Toaster } from "$lib/components/ui/sonner/index.js";
 	import "../app.css";
 
 	let { children, data } = $props();
@@ -20,3 +21,4 @@
 		{@render children()}
 	</main>
 </div>
+<Toaster />

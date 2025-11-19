@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
+	import { toast } from 'svelte-sonner';
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
 	import { Zap, Download, Clock, Check, Headphones, Book, AlertCircle, Loader2, ChevronDown, Copy, CheckCircle, X } from '@lucide/svelte';
 
@@ -166,20 +167,28 @@
 			
 			await recordDownload();
 			
+			toast.success('Download complete!', {
+				description: 'Your audiobook has been downloaded successfully.'
+			});
+			
 		} catch (error) {
 			if (error.name === 'AbortError') {
 				console.log('⏹️ Download canceled by user');
-				downloadError = 'Download canceled';
+				toast.info('Download canceled', {
+					description: 'You can try again anytime.'
+				});
 			} else {
 				console.error('❌ Download error:', error);
 				downloadError = error.message;
+				toast.error('Download failed', {
+					description: error.message
+				});
 			}
 		} finally {
-			setTimeout(() => {
-				isDownloadingComplete = false;
-				downloadProgress = 0;
-				abortController = null;
-			}, 2000);
+			await new Promise(resolve => setTimeout(resolve, 500));
+			isDownloadingComplete = false;
+			downloadProgress = 0;
+			abortController = null;
 		}
 	}
 
@@ -219,9 +228,13 @@
 		try {
 			await navigator.clipboard.writeText(chapter.url);
 			copiedChapter = chapter.number;
+			toast.success('Link copied!', {
+				description: 'Chapter download link copied to clipboard.'
+			});
 			setTimeout(() => copiedChapter = null, 2000);
 		} catch (err) {
 			console.error('❌ Failed to copy:', err);
+			toast.error('Failed to copy link');
 		}
 	}
 
@@ -420,7 +433,7 @@
 									<button
 										onclick={downloadCompleteAudiobook}
 										disabled={isDownloadingComplete}
-										class="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-500/50 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+										class="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-500/50 text-white font-medium rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base"
 									>
 										{#if isDownloadingComplete}
 											<Loader2 class="w-4 h-4 animate-spin" />
@@ -436,7 +449,8 @@
 									{#if isDownloadingComplete}
 										<button
 											onclick={cancelDownload}
-											class="px-3 sm:px-4 py-2 sm:py-2.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+											class="px-3 sm:px-4 py-2 sm:py-2.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base animate-in fade-in slide-in-from-right-5"
+											style="animation-duration: 300ms;"
 											title="Cancel download"
 										>
 											<X class="w-4 h-4" />
@@ -446,7 +460,7 @@
 								</div>
 								
 								{#if downloadError}
-									<div class="mt-3 p-2 sm:p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+									<div class="mt-3 p-2 sm:p-3 bg-destructive/10 border border-destructive/20 rounded-lg transition-all duration-300 animate-in fade-in slide-in-from-top-2" style="animation-duration: 300ms;">
 										<div class="flex items-start gap-2">
 											<AlertCircle class="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
 											<div class="text-xs sm:text-sm text-muted-foreground">{downloadError}</div>

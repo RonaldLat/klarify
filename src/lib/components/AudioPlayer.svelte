@@ -416,7 +416,6 @@
   </div>
  
   <!-- Additional Controls -->
-  <!-- Additional Controls -->
   <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 1rem 1rem; font-size: 0.875rem; gap: 0.5rem; flex-wrap: wrap;">
     <!-- Volume -->
     <div style="display: flex; align-items: center; gap: 0.5rem; position: relative;">
