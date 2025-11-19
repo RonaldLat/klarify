@@ -416,7 +416,8 @@
   </div>
  
   <!-- Additional Controls -->
-  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 1rem 1rem; font-size: 0.875rem;">
+  <!-- Additional Controls -->
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 1rem 1rem; font-size: 0.875rem; gap: 0.5rem; flex-wrap: wrap;">
     <!-- Volume -->
     <div style="display: flex; align-items: center; gap: 0.5rem; position: relative;">
       <button
@@ -459,12 +460,12 @@
     </div>
    
     <!-- Playback Speed -->
-    <div style="display: flex; align-items: center; gap: 0.5rem;">
-      <span style="color: var(--color-muted-foreground); font-size: 0.75rem;">Speed:</span>
+    <div style="display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap;">
+      <span style="color: var(--color-muted-foreground); font-size: 0.75rem; white-space: nowrap;">Speed:</span>
       {#each [0.5, 0.75, 1, 1.25, 1.5, 2] as speed}
         <button
           onclick={() => changeSpeed(speed)}
-          style="padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 500; transition: all 0.2s; border: none; cursor: pointer; background-color: {playbackRate === speed ? 'var(--color-primary)' : 'transparent'}; color: {playbackRate === speed ? 'var(--color-primary-foreground)' : 'var(--color-foreground)'};"
+          style="padding: 0.25rem 0.4rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 500; transition: all 0.2s; border: none; cursor: pointer; background-color: {playbackRate === speed ? 'var(--color-primary)' : 'transparent'}; color: {playbackRate === speed ? 'var(--color-primary-foreground)' : 'var(--color-foreground)'};"
           onmouseenter={(e) => {
             if (playbackRate !== speed) {
               e.currentTarget.style.backgroundColor = 'var(--color-accent)';
