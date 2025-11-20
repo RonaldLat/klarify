@@ -13,6 +13,16 @@
 		if (hours > 0) return `${hours}h ${minutes}m`;
 		return `${minutes}m`;
 	}
+	
+	// Gradient colors for category pills
+	const gradients = [
+		'from-blue-500/20 to-cyan-500/20 border-blue-500/30 hover:border-blue-500',
+		'from-purple-500/20 to-pink-500/20 border-purple-500/30 hover:border-purple-500',
+		'from-green-500/20 to-emerald-500/20 border-green-500/30 hover:border-green-500',
+		'from-orange-500/20 to-red-500/20 border-orange-500/30 hover:border-orange-500',
+		'from-indigo-500/20 to-blue-500/20 border-indigo-500/30 hover:border-indigo-500',
+		'from-rose-500/20 to-pink-500/20 border-rose-500/30 hover:border-rose-500',
+	];
 </script>
 
 <div class="bg-background">
@@ -87,6 +97,7 @@
 			</div>
 		</div>
 	</section>
+
 
 	<!-- Featured Content Types -->
 	<section class="py-12 md:py-16">
@@ -232,7 +243,52 @@
 						<ChevronRight class="w-4 h-4" />
 					</a>
 				</div>
+
+
 			{/if}
+      
+
+
+	<!-- Categories Section - Compact Gradient Pills -->
+	{#if data.categories.length > 0}
+		<section class="py-8 mt-6 md:py-12 bg-muted/30 border-y border-border">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex items-center justify-between mb-6">
+					<h2 class="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+						<TrendingUp class="w-5 h-5 md:w-6 md:h-6 text-primary" />
+						Popular Categories
+					</h2>
+					
+					{#if data.categories.length > visibleCategoriesCount}
+						<button
+							onclick={() => showAllCategories = !showAllCategories}
+							class="flex items-center gap-1 text-sm text-primary hover:underline font-medium"
+						>
+							{showAllCategories ? 'Show Less' : 'View All'}
+							<ChevronDown class="w-4 h-4 transition-transform {showAllCategories ? 'rotate-180' : ''}" />
+						</button>
+					{/if}
+				</div>
+				
+				<!-- Categories Pills with Gradients -->
+				<div class="flex flex-wrap gap-2">
+					{#each data.categories.slice(0, showAllCategories ? data.categories.length : visibleCategoriesCount) as category, index}
+						<a
+							href="/products?category={category.slug}"
+							class="group inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r {gradients[index % gradients.length]} border rounded-full hover:shadow-md transition-all text-sm"
+						>
+							<span class="font-medium text-foreground group-hover:text-primary transition-colors">
+								{category.name}
+							</span>
+							<span class="px-1.5 py-0.5 bg-background/80 backdrop-blur-sm text-foreground text-xs font-bold rounded-full">
+								{category._count.products}
+							</span>
+						</a>
+					{/each}
+				</div>
+			</div>
+		</section>
+	{/if}
 		</div>
 	</section>
 
@@ -266,50 +322,9 @@
 						Browse Library
 					</a>
 				</div>
+
+
 			</div>
 		</section>
 	{/if}
 </div>
-
-	<!-- Categories Section - Compact Pills -->
-	{#if data.categories.length > 0}
-		<section class="py-8 md:py-12 bg-muted/30 border-y border-border">
-			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div class="flex items-center justify-between mb-6">
-					<h2 class="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
-						<TrendingUp class="w-5 h-5 md:w-6 md:h-6 text-primary" />
-						Popular Categories
-					</h2>
-					
-					{#if data.categories.length > visibleCategoriesCount}
-						<button
-							onclick={() => showAllCategories = !showAllCategories}
-							class="flex items-center gap-1 text-sm text-primary hover:underline font-medium"
-						>
-							{showAllCategories ? 'Show Less' : 'View All'}
-							<ChevronDown class="w-4 h-4 transition-transform {showAllCategories ? 'rotate-180' : ''}" />
-						</button>
-					{/if}
-				</div>
-				
-				<!-- Categories Pills -->
-				<div class="flex flex-wrap gap-2 md:gap-3">
-					{#each data.categories.slice(0, showAllCategories ? data.categories.length : visibleCategoriesCount) as category}
-						<a
-							href="/products?category={category.slug}"
-							class="group inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full hover:border-primary hover:shadow-md transition-all"
-						>
-							<span class="text-2xl">{category.icon || '📚'}</span>
-							<span class="font-medium text-foreground group-hover:text-primary transition-colors">
-								{category.name}
-							</span>
-							<span class="px-2 py-0.5 bg-primary/10 text-primary text-xs font-bold rounded-full">
-								{category._count.products}
-							</span>
-						</a>
-					{/each}
-				</div>
-			</div>
-		</section>
-	{/if}
-

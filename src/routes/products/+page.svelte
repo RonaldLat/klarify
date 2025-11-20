@@ -21,17 +21,7 @@
 	<section class="bg-card border-b border-border py-6">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 			<div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-				<!-- Search -->
-				<form method="GET" class="flex-1 max-w-md">
-					<input
-						type="search"
-						name="q"
-						value={data.searchQuery || ''}
-						placeholder="Search books, authors, summaries..."
-						class="w-full px-4 py-2 rounded-md border border-input bg-background text-foreground text-sm
-							focus:outline-none focus:ring-2 focus:ring-ring"
-					/>
-				</form>
+				
 
 				<!-- Type Filter -->
 				<div class="flex gap-2 flex-wrap">
