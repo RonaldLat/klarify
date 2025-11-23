@@ -39,10 +39,12 @@ export async function GET({ url }) {
         author: true,
         coverImage: true,
         type: true,
-        isSummary: true,
+        // FIX: Removed 'isSummary: true' as it is not a field in the Product model.
         pdfPrice: true,
         audioPrice: true,
         bundlePrice: true,
+        // ADDED: summaryPrice for displaying summary products correctly.
+        summaryPrice: true,
         rating: true,
         duration: true,
         pageCount: true,

@@ -13,23 +13,26 @@
 	const isSummary = hasType('SUMMARY');
 	const isAudiobook = hasType('AUDIOBOOK');
 	const isEbook = hasType('EBOOK');
-	const canBuyBundle = isEbook && isAudiobook; // Has both formats
 	
-	// Available formats for selection
-	const availableFormats = $derived.by(() => {
-		const formats = [];
-		if (isEbook) formats.push('PDF');
-		if (isAudiobook) formats.push('AUDIO');
-		if (isSummary) formats.push('SUMMARY');
-		if (canBuyBundle) formats.push('BUNDLE');
-		return formats;
-	});
+	// Calculate bundle options and pricing
+	const canBuyBundle = isEbook && isAudiobook;
+	const BUNDLE_DISCOUNT_PERCENT = 15; // 15% discount on bundles
 	
-	// Default format selection
+	// Calculate bundle price with discount
+	const calculateBundlePrice = () => {
+		const fullPrice = data.product.pdfPrice + data.product.audioPrice;
+		if (data.product.bundlePrice) return data.product.bundlePrice;
+		return Math.round(fullPrice * (1 - BUNDLE_DISCOUNT_PERCENT / 100));
+	};
+	
+	const bundlePrice = canBuyBundle ? calculateBundlePrice() : 0;
+	
+	// Default format selection (prioritize available formats)
 	let selectedFormat = $state(
 		canBuyBundle ? "BUNDLE" :
 		isSummary ? "SUMMARY" :
-		isAudiobook ? "AUDIO" : "PDF"
+		isAudiobook ? "AUDIO" :
+		isEbook ? "PDF" : null
 	);
 
 	let addingToCart = $state(false);
@@ -43,7 +46,7 @@
 			return data.product.summaryPrice || data.product.audioPrice;
 		}
 		if (selectedFormat === "BUNDLE") {
-			return data.product.bundlePrice || (data.product.pdfPrice + data.product.audioPrice);
+			return bundlePrice;
 		}
 		if (selectedFormat === "AUDIO") return data.product.audioPrice;
 		return data.product.pdfPrice;
@@ -53,9 +56,9 @@
 	 * Get savings amount for bundle
 	 */
 	function getSavings() {
-		if (selectedFormat === "BUNDLE" && data.product.bundlePrice) {
+		if (selectedFormat === "BUNDLE") {
 			const fullPrice = data.product.pdfPrice + data.product.audioPrice;
-			return fullPrice - data.product.bundlePrice;
+			return fullPrice - bundlePrice;
 		}
 		return 0;
 	}
@@ -64,7 +67,7 @@
 	 * Add to cart
 	 */
 	async function addToCart() {
-		if (addingToCart) return;
+		if (addingToCart || !selectedFormat) return;
 
 		addingToCart = true;
 		cartMessage = "";
@@ -142,9 +145,9 @@
 									</span>
 								{/if}
 								{#if canBuyBundle}
-									<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg shadow-lg">
+									<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500 text-white text-sm font-semibold rounded-lg shadow-lg">
 										<Package class="w-4 h-4" />
-										Bundle Available
+										{BUNDLE_DISCOUNT_PERCENT}% OFF Bundle
 									</span>
 								{/if}
 							</div>
@@ -244,107 +247,106 @@
 						<h3 class="text-lg font-semibold text-foreground">Choose Your Format</h3>
 						
 						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-							{#if isEbook}
-								<button
-									onclick={() => selectedFormat = "PDF"}
-									class="p-4 rounded-lg border-2 transition-all text-left {selectedFormat === 'PDF' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}"
-								>
-									<div class="flex items-center justify-between mb-2">
-										<div class="flex items-center gap-2">
-											<BookOpen class="w-5 h-5 {selectedFormat === 'PDF' ? 'text-primary' : 'text-muted-foreground'}" />
-											<span class="font-semibold">PDF eBook</span>
-										</div>
-										{#if selectedFormat === 'PDF'}
-											<Check class="w-5 h-5 text-primary" />
-										{/if}
+							<button
+								onclick={() => isEbook && (selectedFormat = "PDF")}
+								disabled={!isEbook}
+								class="p-4 rounded-lg border-2 transition-all text-left {isEbook ? (selectedFormat === 'PDF' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50 cursor-pointer') : 'border-border/30 opacity-50 cursor-not-allowed'}"
+							>
+								<div class="flex items-center justify-between mb-2">
+									<div class="flex items-center gap-2">
+										<BookOpen class="w-5 h-5 {selectedFormat === 'PDF' && isEbook ? 'text-primary' : 'text-muted-foreground'}" />
+										<span class="font-semibold">PDF eBook</span>
 									</div>
-									<div class="text-2xl font-bold text-primary mb-1">
-										KSh {data.product.pdfPrice}
-									</div>
-									<div class="text-xs text-muted-foreground">
-										Digital PDF file
-									</div>
-								</button>
-							{/if}
-
-							{#if isAudiobook}
-								<button
-									onclick={() => selectedFormat = "AUDIO"}
-									class="p-4 rounded-lg border-2 transition-all text-left {selectedFormat === 'AUDIO' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}"
-								>
-									<div class="flex items-center justify-between mb-2">
-										<div class="flex items-center gap-2">
-											<Headphones class="w-5 h-5 {selectedFormat === 'AUDIO' ? 'text-primary' : 'text-muted-foreground'}" />
-											<span class="font-semibold">Audiobook</span>
-										</div>
-										{#if selectedFormat === 'AUDIO'}
-											<Check class="w-5 h-5 text-primary" />
-										{/if}
-									</div>
-									<div class="text-2xl font-bold text-primary mb-1">
-										KSh {data.product.audioPrice}
-									</div>
-									<div class="text-xs text-muted-foreground">
-										{data.product.duration ? formatDuration(data.product.duration) : 'Full narration'}
-									</div>
-								</button>
-							{/if}
-
-							{#if isSummary}
-								<button
-									onclick={() => selectedFormat = "SUMMARY"}
-									class="p-4 rounded-lg border-2 transition-all text-left {selectedFormat === 'SUMMARY' ? 'border-amber-500 bg-amber-500/5 shadow-md' : 'border-amber-500/30 hover:border-amber-500'}"
-								>
-									<div class="flex items-center justify-between mb-2">
-										<div class="flex items-center gap-2">
-											<Zap class="w-5 h-5 text-amber-600 dark:text-amber-400" />
-											<span class="font-semibold text-amber-600 dark:text-amber-400">Audio Summary</span>
-										</div>
-										{#if selectedFormat === 'SUMMARY'}
-											<Check class="w-5 h-5 text-amber-600" />
-										{/if}
-									</div>
-									<div class="text-2xl font-bold text-amber-600 dark:text-amber-400 mb-1">
-										KSh {data.product.summaryPrice || data.product.audioPrice}
-									</div>
-									<div class="text-xs text-amber-600/70 dark:text-amber-400/70">
-										{data.product.summaryDuration ? formatDuration(data.product.summaryDuration) : '15-20 minutes'}
-									</div>
-								</button>
-							{/if}
-
-							{#if canBuyBundle}
-								<button
-									onclick={() => selectedFormat = "BUNDLE"}
-									class="p-4 rounded-lg border-2 transition-all text-left relative {selectedFormat === 'BUNDLE' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}"
-								>
-									{#if data.product.bundlePrice && getSavings() > 0}
-										<span class="absolute -top-2 -right-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
-											SAVE KSh {getSavings()}
-										</span>
+									{#if selectedFormat === 'PDF' && isEbook}
+										<Check class="w-5 h-5 text-primary" />
 									{/if}
-									<div class="flex items-center justify-between mb-2">
-										<div class="flex items-center gap-2">
-											<Package class="w-5 h-5 {selectedFormat === 'BUNDLE' ? 'text-primary' : 'text-muted-foreground'}" />
-											<span class="font-semibold">Complete Bundle</span>
-										</div>
-										{#if selectedFormat === 'BUNDLE'}
-											<Check class="w-5 h-5 text-primary" />
-										{/if}
+								</div>
+								<div class="text-2xl font-bold {isEbook ? 'text-primary' : 'text-muted-foreground'} mb-1">
+									KSh {data.product.pdfPrice}
+								</div>
+								<div class="text-xs text-muted-foreground">
+									{isEbook ? 'Digital PDF file' : 'Not available'}
+								</div>
+							</button>
+
+							<button
+								onclick={() => isAudiobook && (selectedFormat = "AUDIO")}
+								disabled={!isAudiobook}
+								class="p-4 rounded-lg border-2 transition-all text-left {isAudiobook ? (selectedFormat === 'AUDIO' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50 cursor-pointer') : 'border-border/30 opacity-50 cursor-not-allowed'}"
+							>
+								<div class="flex items-center justify-between mb-2">
+									<div class="flex items-center gap-2">
+										<Headphones class="w-5 h-5 {selectedFormat === 'AUDIO' && isAudiobook ? 'text-primary' : 'text-muted-foreground'}" />
+										<span class="font-semibold">Audiobook</span>
 									</div>
-									<div class="text-2xl font-bold text-primary mb-1">
-										KSh {data.product.bundlePrice || (data.product.pdfPrice + data.product.audioPrice)}
+									{#if selectedFormat === 'AUDIO' && isAudiobook}
+										<Check class="w-5 h-5 text-primary" />
+									{/if}
+								</div>
+								<div class="text-2xl font-bold {isAudiobook ? 'text-primary' : 'text-muted-foreground'} mb-1">
+									KSh {data.product.audioPrice}
+								</div>
+								<div class="text-xs text-muted-foreground">
+									{isAudiobook ? (data.product.duration ? formatDuration(data.product.duration) : 'Full narration') : 'Not available'}
+								</div>
+							</button>
+
+							<button
+								onclick={() => isSummary && (selectedFormat = "SUMMARY")}
+								disabled={!isSummary}
+								class="p-4 rounded-lg border-2 transition-all text-left {isSummary ? (selectedFormat === 'SUMMARY' ? 'border-amber-500 bg-amber-500/5 shadow-md' : 'border-amber-500/30 hover:border-amber-500 cursor-pointer') : 'border-border/30 opacity-50 cursor-not-allowed'}"
+							>
+								<div class="flex items-center justify-between mb-2">
+									<div class="flex items-center gap-2">
+										<Zap class="w-5 h-5 {isSummary ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}" />
+										<span class="font-semibold {isSummary ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}">Audio Summary</span>
 									</div>
-									<div class="text-xs text-muted-foreground">
+									{#if selectedFormat === 'SUMMARY' && isSummary}
+										<Check class="w-5 h-5 text-amber-600" />
+									{/if}
+								</div>
+								<div class="text-2xl font-bold {isSummary ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'} mb-1">
+									KSh {data.product.summaryPrice || data.product.audioPrice}
+								</div>
+								<div class="text-xs {isSummary ? 'text-amber-600/70 dark:text-amber-400/70' : 'text-muted-foreground'}">
+									{isSummary ? (data.product.summaryDuration ? formatDuration(data.product.summaryDuration) : '15-20 minutes') : 'Not available'}
+								</div>
+							</button>
+
+							<button
+								onclick={() => canBuyBundle && (selectedFormat = "BUNDLE")}
+								disabled={!canBuyBundle}
+								class="p-4 rounded-lg border-2 transition-all text-left relative {canBuyBundle ? (selectedFormat === 'BUNDLE' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50 cursor-pointer') : 'border-border/30 opacity-50 cursor-not-allowed'}"
+							>
+								{#if canBuyBundle && getSavings() > 0}
+									<span class="absolute -top-2 -right-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
+										SAVE KSh {getSavings()}
+									</span>
+								{/if}
+								<div class="flex items-center justify-between mb-2">
+									<div class="flex items-center gap-2">
+										<Package class="w-5 h-5 {selectedFormat === 'BUNDLE' && canBuyBundle ? 'text-primary' : 'text-muted-foreground'}" />
+										<span class="font-semibold">Complete Bundle</span>
+									</div>
+									{#if selectedFormat === 'BUNDLE' && canBuyBundle}
+										<Check class="w-5 h-5 text-primary" />
+									{/if}
+								</div>
+								<div class="text-2xl font-bold {canBuyBundle ? 'text-primary' : 'text-muted-foreground'} mb-1">
+									KSh {bundlePrice}
+								</div>
+								<div class="text-xs text-muted-foreground">
+									{#if canBuyBundle}
 										PDF + Audiobook
-										{#if !data.product.bundlePrice}
-											<span class="block mt-1">
-												<span class="line-through">KSh {data.product.pdfPrice + data.product.audioPrice}</span>
-											</span>
-										{/if}
-									</div>
-								</button>
-							{/if}
+										<span class="block mt-1">
+											<span class="line-through">KSh {data.product.pdfPrice + data.product.audioPrice}</span>
+											<span class="text-green-600 ml-1">-{BUNDLE_DISCOUNT_PERCENT}%</span>
+										</span>
+									{:else}
+										Not available
+									{/if}
+								</div>
+							</button>
 						</div>
 					</div>
 
@@ -365,7 +367,7 @@
 											KSh {data.product.pdfPrice + data.product.audioPrice}
 										</span>
 										<span class="text-green-600 font-medium">
-											Save KSh {getSavings()}!
+											Save KSh {getSavings()} ({BUNDLE_DISCOUNT_PERCENT}%)
 										</span>
 									</div>
 								{/if}
@@ -381,10 +383,10 @@
 						<div class="space-y-3">
 							<button
 								onclick={addToCart}
-								disabled={addingToCart}
-								class="w-full px-6 py-3 {selectedFormat === 'SUMMARY' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-primary/90'} text-white font-semibold rounded-lg transition-colors shadow-lg disabled:opacity-50"
+								disabled={addingToCart || !selectedFormat}
+								class="w-full px-6 py-3 {selectedFormat === 'SUMMARY' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-primary/90'} text-white font-semibold rounded-lg transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
 							>
-								{addingToCart ? "Adding..." : "Add to Cart"}
+								{addingToCart ? "Adding..." : !selectedFormat ? "Select a format" : "Add to Cart"}
 							</button>
 							<a
 								href="/cart"
@@ -411,6 +413,12 @@
 								<div class="flex items-center gap-2">
 									<Check class="w-5 h-5 text-amber-600" />
 									<span class="font-medium text-amber-600 dark:text-amber-400">Learn in 15-20 minutes</span>
+								</div>
+							{/if}
+							{#if selectedFormat === 'BUNDLE'}
+								<div class="flex items-center gap-2">
+									<Check class="w-5 h-5 text-green-600" />
+									<span class="font-medium text-green-600">Save {BUNDLE_DISCOUNT_PERCENT}% with bundle</span>
 								</div>
 							{/if}
 						</div>

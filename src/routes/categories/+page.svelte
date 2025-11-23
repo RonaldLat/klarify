@@ -61,7 +61,7 @@
                 {@const span = brickLayout(i)}
 
                 <a
-                    href={`/summaries?category=${category.slug}`}
+                    href={`/products?category=${category.slug}`}
                     class={`category-card rounded-xl p-3 shadow-sm flex flex-col justify-between text-white border border-white/10 ${span}`}
                     style={`background-image: linear-gradient(135deg, ${palette.from}, ${palette.to});`}
                 >

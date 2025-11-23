@@ -18,9 +18,10 @@
 	
 	// Format price
 	function getDisplayPrice(product) {
-		if (product.isSummary) return product.audioPrice;
-		if (product.type === 'AUDIOBOOK') return product.audioPrice;
-		if (product.type === 'BUNDLE') return product.bundlePrice;
+		// FIX: Use summaryPrice for products marked as a summary (derived property).
+		if (product.isSummary) return product.summaryPrice;
+		if (product.type && product.type.includes('AUDIOBOOK')) return product.audioPrice;
+		if (product.type && product.type.includes('BUNDLE')) return product.bundlePrice;
 		return product.pdfPrice;
 	}
 	
@@ -35,8 +36,9 @@
 	
 	// Get type icon
 	function getTypeIcon(product) {
-		if (product.isSummary || product.type === 'SUMMARY') return Zap;
-		if (product.type === 'AUDIOBOOK') return Headphones;
+		// Uses the derived isSummary property
+		if (product.isSummary || (product.type && product.type.includes('SUMMARY'))) return Zap;
+		if (product.type && product.type.includes('AUDIOBOOK')) return Headphones;
 		return Book;
 	}
 	
@@ -55,7 +57,12 @@
 			const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}&limit=8`);
 			const data = await response.json();
 			
-			results = data.results || [];
+			// FIX: Derive the missing isSummary property from the 'type' array
+			results = (data.results || []).map(product => ({
+				...product,
+				isSummary: product.type ? product.type.includes('SUMMARY') : false
+			}));
+			
 			authors = data.authors || [];
 			showResults = true;
 		} catch (error) {
@@ -156,7 +163,6 @@
 </script>
 
 <div class="search-container relative w-full">
-	<!-- Search Input -->
 	<div class="relative">
 		<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground pointer-events-none" />
 		
@@ -174,7 +180,6 @@
 				placeholder:text-muted-foreground"
 		/>
 		
-		<!-- Loading Spinner & Clear Button -->
 		<div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
 			{#if isLoading}
 				<div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -190,13 +195,11 @@
 		</div>
 	</div>
 	
-	<!-- Autocomplete Results -->
 	{#if showResults && (results.length > 0 || authors.length > 0)}
-		<div 
+		<div 
 			class="absolute z-50 w-full mt-2 bg-card border border-border rounded-lg shadow-2xl overflow-hidden
 				animate-in fade-in slide-in-from-top-2 duration-200"
 		>
-			<!-- Products -->
 			{#if results.length > 0}
 				<div class="max-h-[60vh] md:max-h-96 overflow-y-auto overscroll-contain">
 					{#each results as product, index}
@@ -207,10 +210,9 @@
 								{selectedIndex === index ? 'bg-accent' : ''}
 								border-b border-border last:border-b-0"
 						>
-							<!-- Cover Image -->
 							<div class="flex-shrink-0 w-12 h-16 md:w-14 md:h-20 bg-muted rounded overflow-hidden">
 								{#if product.coverImage}
-									<img 
+									<img 
 										src={publicUrl + product.coverImage}
 										alt={product.title}
 										class="w-full h-full object-cover"
@@ -219,10 +221,9 @@
 									<div class="w-full h-full flex items-center justify-center">
 										<Book class="w-6 h-6 text-muted-foreground opacity-50" />
 									</div>
-								{/if}
+								{</if}
 							</div>
 							
-							<!-- Product Info -->
 							<div class="flex-1 min-w-0">
 								<div class="flex items-start gap-2 mb-1">
 									<h4 class="font-semibold text-sm md:text-base text-foreground line-clamp-1 flex-1">
@@ -259,7 +260,6 @@
 				</div>
 			{/if}
 			
-			<!-- Authors -->
 			{#if authors.length > 0}
 				<div class="border-t border-border bg-muted/30 p-2">
 					<p class="text-xs text-muted-foreground px-2 mb-2">Authors:</p>
@@ -277,10 +277,9 @@
 				</div>
 			{/if}
 			
-			<!-- View All Results -->
 			<button
 				onclick={performFullSearch}
-				class="w-full flex items-center justify-center gap-2 p-3 bg-primary/5 hover:bg-primary/10 
+				class="w-full flex items-center justify-center gap-2 p-3 bg-primary/5 hover:bg-primary/10 
 					text-primary font-medium text-sm transition-colors"
 			>
 				<TrendingUp class="w-4 h-4" />
@@ -288,8 +287,7 @@
 			</button>
 		</div>
 	{:else if showResults && searchQuery.length >= 2 && !isLoading}
-		<!-- No Results -->
-		<div 
+		<div 
 			class="absolute z-50 w-full mt-2 bg-card border border-border rounded-lg shadow-2xl p-6
 				animate-in fade-in slide-in-from-top-2 duration-200"
 		>
