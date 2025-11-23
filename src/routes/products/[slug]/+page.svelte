@@ -1,17 +1,35 @@
 <script>
 	import { invalidateAll } from "$app/navigation";
-	import { Zap, Clock, BookOpen, Headphones, ChevronRight, Star, Check } from '@lucide/svelte';
+	import { Zap, Clock, BookOpen, Headphones, ChevronRight, Star, Check, Package } from '@lucide/svelte';
 	
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
 
 	let { data } = $props();
 	
-	// Check if this is a summary
-	const isSummary = $derived(data.product.type === 'SUMMARY');
+	// Helper: Check if product has specific type
+	const hasType = (type) => data.product.type.includes(type);
 	
+	// Check what types this product has
+	const isSummary = hasType('SUMMARY');
+	const isAudiobook = hasType('AUDIOBOOK');
+	const isEbook = hasType('EBOOK');
+	const canBuyBundle = isEbook && isAudiobook; // Has both formats
+	
+	// Available formats for selection
+	const availableFormats = $derived.by(() => {
+		const formats = [];
+		if (isEbook) formats.push('PDF');
+		if (isAudiobook) formats.push('AUDIO');
+		if (isSummary) formats.push('SUMMARY');
+		if (canBuyBundle) formats.push('BUNDLE');
+		return formats;
+	});
+	
+	// Default format selection
 	let selectedFormat = $state(
-		data.product.type === "BUNDLE" ? "BUNDLE" : 
-		data.product.type === "AUDIOBOOK" || isSummary ? "AUDIO" : "PDF"
+		canBuyBundle ? "BUNDLE" :
+		isSummary ? "SUMMARY" :
+		isAudiobook ? "AUDIO" : "PDF"
 	);
 
 	let addingToCart = $state(false);
@@ -21,10 +39,25 @@
 	 * Get price for selected format
 	 */
 	function getPrice() {
-		if (isSummary) return data.product.audioPrice; // Summaries only have audio
-		if (selectedFormat === "BUNDLE") return data.product.bundlePrice || (data.product.pdfPrice + data.product.audioPrice);
+		if (selectedFormat === "SUMMARY") {
+			return data.product.summaryPrice || data.product.audioPrice;
+		}
+		if (selectedFormat === "BUNDLE") {
+			return data.product.bundlePrice || (data.product.pdfPrice + data.product.audioPrice);
+		}
 		if (selectedFormat === "AUDIO") return data.product.audioPrice;
 		return data.product.pdfPrice;
+	}
+	
+	/**
+	 * Get savings amount for bundle
+	 */
+	function getSavings() {
+		if (selectedFormat === "BUNDLE" && data.product.bundlePrice) {
+			const fullPrice = data.product.pdfPrice + data.product.audioPrice;
+			return fullPrice - data.product.bundlePrice;
+		}
+		return 0;
 	}
 
 	/**
@@ -42,7 +75,7 @@
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					productId: data.product.id,
-					format: isSummary ? "AUDIO" : selectedFormat // Summaries always AUDIO
+					format: selectedFormat
 				})
 			});
 
@@ -67,11 +100,20 @@
 	 * Format duration
 	 */
 	function formatDuration(seconds) {
+		if (!seconds) return null;
 		const hours = Math.floor(seconds / 3600);
 		const minutes = Math.floor((seconds % 3600) / 60);
 		if (hours > 0) return `${hours}h ${minutes}m`;
 		return `${minutes}m`;
 	}
+	
+	// Get display duration based on selected format
+	const displayDuration = $derived.by(() => {
+		if (selectedFormat === 'SUMMARY' && data.product.summaryDuration) {
+			return data.product.summaryDuration;
+		}
+		return data.product.duration;
+	});
 </script>
 
 <svelte:head>
@@ -80,36 +122,37 @@
 </svelte:head>
 
 <div class="min-h-screen bg-background">
-	<!-- Product Hero Section -->
 	<section class="bg-card border-b border-border">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
 			<div class="grid grid-cols-1 md:grid-cols-5 gap-8">
-				<!-- Cover Image -->
 				<div class="md:col-span-2">
 					<div class="sticky top-24">
 						<div class="aspect-[2/3] bg-muted rounded-lg overflow-hidden shadow-lg relative">
-							<img 
-								src={publicUrl + data.product.coverImage} 
+							<img 
+								src={publicUrl + data.product.coverImage} 
 								alt="{data.product.title} cover"
 								class="w-full h-full object-cover"
 							/>
 							
-							<!-- Summary Badge on Cover -->
-							{#if isSummary}
-								<div class="absolute top-4 left-4">
+							<div class="absolute top-4 left-4 flex flex-col gap-2">
+								{#if isSummary}
 									<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-sm font-semibold rounded-lg shadow-lg">
 										<Zap class="w-4 h-4" />
 										Audio Summary
 									</span>
-								</div>
-							{/if}
+								{/if}
+								{#if canBuyBundle}
+									<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg shadow-lg">
+										<Package class="w-4 h-4" />
+										Bundle Available
+									</span>
+								{/if}
+							</div>
 						</div>
 					</div>
 				</div>
 
-				<!-- Product Info -->
 				<div class="md:col-span-3 space-y-6">
-					<!-- Breadcrumb -->
 					<nav class="flex items-center gap-2 text-sm text-muted-foreground">
 						<a href="/products" class="hover:text-foreground">Products</a>
 						<ChevronRight class="w-4 h-4" />
@@ -120,9 +163,7 @@
 						<span class="text-foreground truncate">{data.product.title}</span>
 					</nav>
 
-					<!-- Title & Meta -->
 					<div>
-						<!-- Badges -->
 						<div class="flex flex-wrap gap-2 mb-3">
 							{#if data.product.featured}
 								<span class="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
@@ -130,12 +171,11 @@
 									Featured
 								</span>
 							{/if}
-							{#if isSummary}
-								<span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-medium rounded-full">
-									<Zap class="w-3.5 h-3.5" />
-									Quick Summary
+							{#each data.product.type as productType}
+								<span class="px-3 py-1 bg-secondary text-secondary-foreground text-xs rounded-full">
+									{productType}
 								</span>
-							{/if}
+							{/each}
 						</div>
 
 						<h1 class="text-3xl md:text-4xl font-bold text-foreground mb-2">
@@ -151,7 +191,6 @@
 							{/if}
 						</p>
 
-						<!-- Rating & Meta -->
 						<div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
 							{#if data.product.rating > 0}
 								<div class="flex items-center gap-1">
@@ -161,16 +200,10 @@
 								</div>
 							{/if}
 							
-							{#if !isSummary}
-								<span class="px-3 py-1 bg-secondary rounded-full">
-									{data.product.type}
-								</span>
-							{/if}
-							
-							{#if data.product.duration}
+							{#if displayDuration}
 								<span class="flex items-center gap-1">
 									<Clock class="w-4 h-4" />
-									{formatDuration(data.product.duration)}
+									{formatDuration(displayDuration)}
 								</span>
 							{:else if data.product.pageCount}
 								<span class="flex items-center gap-1">
@@ -182,7 +215,6 @@
 							<span>{data.product.downloads} downloads</span>
 						</div>
 
-						<!-- Summary-Specific Info -->
 						{#if isSummary && data.product.keyTakeaways}
 							<div class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg">
 								<Zap class="w-5 h-5" />
@@ -191,7 +223,6 @@
 						{/if}
 					</div>
 
-					<!-- Categories -->
 					{#if data.product.categories.length > 0}
 						<div class="flex flex-wrap gap-2">
 							{#each data.product.categories as category}
@@ -205,207 +236,142 @@
 						</div>
 					{/if}
 
-					<!-- Original Book Section (for summaries) -->
-					{#if isSummary && data.product.originalProduct}
-						<div class="bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 rounded-lg p-5">
-							<div class="flex items-start gap-4">
-								<div class="flex-shrink-0">
-									<BookOpen class="w-8 h-8 text-amber-600 dark:text-amber-400" />
-								</div>
-								<div class="flex-1">
-									<h3 class="text-lg font-semibold text-foreground mb-2">
-										📚 Full Book Available
-									</h3>
-									<p class="text-sm text-muted-foreground mb-3">
-										Want to dive deeper? Get the complete experience with the full {data.product.originalProduct.type === 'AUDIOBOOK' ? 'audiobook' : 'book'}.
-									</p>
-									
-									<div class="bg-background/80 backdrop-blur-sm rounded-lg p-4 border border-border/50">
-										<div class="flex gap-4">
-											<a href="/products/{data.product.originalProduct.slug}" class="flex-shrink-0">
-												<img 
-													src="{publicUrl}{data.product.originalProduct.coverImage}"
-													alt={data.product.originalProduct.title}
-													class="w-16 h-24 object-cover rounded shadow-md hover:shadow-lg transition-shadow"
-												/>
-											</a>
-											
-											<div class="flex-1 min-w-0">
-												<a 
-													href="/products/{data.product.originalProduct.slug}"
-													class="font-semibold text-foreground hover:text-primary line-clamp-2 mb-1 block"
-												>
-													{data.product.originalProduct.title}
-												</a>
-												<p class="text-sm text-muted-foreground mb-2">
-													by {data.product.originalProduct.author}
-												</p>
-												
-												<div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-3">
-													{#if data.product.originalProduct.duration}
-														<span class="flex items-center gap-1">
-															<Clock class="w-3.5 h-3.5" />
-															{formatDuration(data.product.originalProduct.duration)}
-														</span>
-													{/if}
-													{#if data.product.originalProduct.pageCount}
-														<span class="flex items-center gap-1">
-															<BookOpen class="w-3.5 h-3.5" />
-															{data.product.originalProduct.pageCount} pages
-														</span>
-													{/if}
-												</div>
-
-												<div class="flex items-center justify-between">
-													<span class="text-base font-bold text-foreground">
-														KSh {data.product.originalProduct.audioPrice || data.product.originalProduct.pdfPrice}
-													</span>
-													<a 
-														href="/products/{data.product.originalProduct.slug}"
-														class="inline-flex items-center gap-1 text-sm text-primary hover:underline font-medium"
-													>
-														View Full Book
-														<ChevronRight class="w-4 h-4" />
-													</a>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					{/if}
-
-					<!-- Available Summaries Section (for full books) -->
-					{#if !isSummary && data.product.summaries && data.product.summaries.length > 0}
-						<div class="bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 rounded-lg p-5">
-							<div class="flex items-start gap-4 mb-4">
-								<div class="flex-shrink-0">
-									<Zap class="w-8 h-8 text-amber-600 dark:text-amber-400" />
-								</div>
-								<div class="flex-1">
-									<h3 class="text-lg font-semibold text-foreground mb-2">
-										⚡ Quick Summaries Available
-									</h3>
-									<p class="text-sm text-muted-foreground mb-4">
-										Short on time? Get the key insights in 15-20 minutes with our professionally curated audio summaries.
-									</p>
-								</div>
-							</div>
-
-							<div class="grid gap-3">
-								{#each data.product.summaries as summary}
-									<a 
-										href="/products/{summary.slug}"
-										class="bg-background/80 backdrop-blur-sm rounded-lg p-4 border border-border/50 hover:border-amber-500/50 transition-all group"
-									>
-										<div class="flex gap-3">
-											<img 
-												src="{publicUrl}{summary.coverImage}"
-												alt={summary.title}
-												class="w-14 h-20 object-cover rounded shadow group-hover:shadow-md transition-shadow flex-shrink-0"
-											/>
-											
-											<div class="flex-1 min-w-0">
-												<div class="flex items-start justify-between gap-2 mb-2">
-													<h4 class="font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 text-sm line-clamp-2 flex-1">
-														{summary.title}
-													</h4>
-													<span class="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex-shrink-0">
-														<Headphones class="w-3 h-3" />
-														Audio
-													</span>
-												</div>
-
-												<div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-2">
-													{#if summary.duration}
-														<span class="flex items-center gap-1">
-															<Clock class="w-3.5 h-3.5" />
-															{formatDuration(summary.duration)}
-														</span>
-													{/if}
-													{#if summary.keyTakeaways}
-														<span class="flex items-center gap-1">
-															<Zap class="w-3.5 h-3.5" />
-															{summary.keyTakeaways} insights
-														</span>
-													{/if}
-												</div>
-
-												<div class="flex items-center justify-between">
-													<span class="text-sm font-bold text-foreground">
-														KSh {summary.audioPrice}
-													</span>
-													<span class="inline-flex items-center gap-1 text-xs text-primary group-hover:underline font-medium">
-														View Summary
-														<ChevronRight class="w-3.5 h-3.5" />
-													</span>
-												</div>
-											</div>
-										</div>
-									</a>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Description -->
 					<div class="prose prose-sm md:prose max-w-none">
 						<p class="text-foreground leading-relaxed">{data.product.description}</p>
 					</div>
 
-					<!-- Format Selection (for bundles only, not for summaries) -->
-					{#if data.product.type === "BUNDLE"}
-						<div class="space-y-3">
-							<label class="block text-sm font-medium text-foreground">Choose Format:</label>
-							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+					<div class="bg-accent/30 rounded-lg p-6 space-y-4">
+						<h3 class="text-lg font-semibold text-foreground">Choose Your Format</h3>
+						
+						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+							{#if isEbook}
 								<button
 									onclick={() => selectedFormat = "PDF"}
-									class="px-4 py-3 rounded-lg border-2 transition-all {selectedFormat === 'PDF' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}"
+									class="p-4 rounded-lg border-2 transition-all text-left {selectedFormat === 'PDF' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}"
 								>
-									<div class="font-medium text-foreground">PDF Only</div>
-									<div class="text-sm text-muted-foreground">KSh {data.product.pdfPrice}</div>
+									<div class="flex items-center justify-between mb-2">
+										<div class="flex items-center gap-2">
+											<BookOpen class="w-5 h-5 {selectedFormat === 'PDF' ? 'text-primary' : 'text-muted-foreground'}" />
+											<span class="font-semibold">PDF eBook</span>
+										</div>
+										{#if selectedFormat === 'PDF'}
+											<Check class="w-5 h-5 text-primary" />
+										{/if}
+									</div>
+									<div class="text-2xl font-bold text-primary mb-1">
+										KSh {data.product.pdfPrice}
+									</div>
+									<div class="text-xs text-muted-foreground">
+										Digital PDF file
+									</div>
 								</button>
+							{/if}
+
+							{#if isAudiobook}
 								<button
 									onclick={() => selectedFormat = "AUDIO"}
-									class="px-4 py-3 rounded-lg border-2 transition-all {selectedFormat === 'AUDIO' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}"
+									class="p-4 rounded-lg border-2 transition-all text-left {selectedFormat === 'AUDIO' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}"
 								>
-									<div class="font-medium text-foreground">Audio Only</div>
-									<div class="text-sm text-muted-foreground">KSh {data.product.audioPrice}</div>
+									<div class="flex items-center justify-between mb-2">
+										<div class="flex items-center gap-2">
+											<Headphones class="w-5 h-5 {selectedFormat === 'AUDIO' ? 'text-primary' : 'text-muted-foreground'}" />
+											<span class="font-semibold">Audiobook</span>
+										</div>
+										{#if selectedFormat === 'AUDIO'}
+											<Check class="w-5 h-5 text-primary" />
+										{/if}
+									</div>
+									<div class="text-2xl font-bold text-primary mb-1">
+										KSh {data.product.audioPrice}
+									</div>
+									<div class="text-xs text-muted-foreground">
+										{data.product.duration ? formatDuration(data.product.duration) : 'Full narration'}
+									</div>
 								</button>
+							{/if}
+
+							{#if isSummary}
+								<button
+									onclick={() => selectedFormat = "SUMMARY"}
+									class="p-4 rounded-lg border-2 transition-all text-left {selectedFormat === 'SUMMARY' ? 'border-amber-500 bg-amber-500/5 shadow-md' : 'border-amber-500/30 hover:border-amber-500'}"
+								>
+									<div class="flex items-center justify-between mb-2">
+										<div class="flex items-center gap-2">
+											<Zap class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+											<span class="font-semibold text-amber-600 dark:text-amber-400">Audio Summary</span>
+										</div>
+										{#if selectedFormat === 'SUMMARY'}
+											<Check class="w-5 h-5 text-amber-600" />
+										{/if}
+									</div>
+									<div class="text-2xl font-bold text-amber-600 dark:text-amber-400 mb-1">
+										KSh {data.product.summaryPrice || data.product.audioPrice}
+									</div>
+									<div class="text-xs text-amber-600/70 dark:text-amber-400/70">
+										{data.product.summaryDuration ? formatDuration(data.product.summaryDuration) : '15-20 minutes'}
+									</div>
+								</button>
+							{/if}
+
+							{#if canBuyBundle}
 								<button
 									onclick={() => selectedFormat = "BUNDLE"}
-									class="px-4 py-3 rounded-lg border-2 transition-all relative {selectedFormat === 'BUNDLE' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}"
+									class="p-4 rounded-lg border-2 transition-all text-left relative {selectedFormat === 'BUNDLE' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}"
 								>
-									<span class="absolute -top-2 -right-2 px-2 py-0.5 bg-primary text-primary-foreground text-xs font-bold rounded-full">
-										SAVE
-									</span>
-									<div class="font-medium text-foreground">Bundle</div>
-									<div class="text-sm text-muted-foreground">KSh {data.product.bundlePrice || (data.product.pdfPrice + data.product.audioPrice)}</div>
+									{#if data.product.bundlePrice && getSavings() > 0}
+										<span class="absolute -top-2 -right-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
+											SAVE KSh {getSavings()}
+										</span>
+									{/if}
+									<div class="flex items-center justify-between mb-2">
+										<div class="flex items-center gap-2">
+											<Package class="w-5 h-5 {selectedFormat === 'BUNDLE' ? 'text-primary' : 'text-muted-foreground'}" />
+											<span class="font-semibold">Complete Bundle</span>
+										</div>
+										{#if selectedFormat === 'BUNDLE'}
+											<Check class="w-5 h-5 text-primary" />
+										{/if}
+									</div>
+									<div class="text-2xl font-bold text-primary mb-1">
+										KSh {data.product.bundlePrice || (data.product.pdfPrice + data.product.audioPrice)}
+									</div>
+									<div class="text-xs text-muted-foreground">
+										PDF + Audiobook
+										{#if !data.product.bundlePrice}
+											<span class="block mt-1">
+												<span class="line-through">KSh {data.product.pdfPrice + data.product.audioPrice}</span>
+											</span>
+										{/if}
+									</div>
 								</button>
-							</div>
+							{/if}
 						</div>
-					{/if}
+					</div>
 
-					<!-- Purchase Section -->
 					<div class="bg-accent/50 rounded-lg p-6 space-y-4">
 						<div class="flex items-center justify-between">
 							<div>
 								<div class="text-sm text-muted-foreground">
-									{isSummary ? 'Audio Summary Price' : 'Price'}
+									{selectedFormat === 'BUNDLE' ? 'Bundle Price' :
+									 selectedFormat === 'SUMMARY' ? 'Summary Price' :
+									 selectedFormat === 'AUDIO' ? 'Audio Price' : 'PDF Price'}
 								</div>
-								<div class="text-3xl font-bold {isSummary ? 'text-amber-600 dark:text-amber-400' : 'text-primary'}">
+								<div class="text-3xl font-bold {selectedFormat === 'SUMMARY' ? 'text-amber-600 dark:text-amber-400' : 'text-primary'}">
 									KSh {getPrice()}
 								</div>
-								{#if selectedFormat === "BUNDLE" && !isSummary}
-									<div class="text-sm text-muted-foreground line-through">
-										KSh {data.product.pdfPrice + data.product.audioPrice}
+								{#if selectedFormat === "BUNDLE" && getSavings() > 0}
+									<div class="flex items-center gap-2 text-sm mt-1">
+										<span class="text-muted-foreground line-through">
+											KSh {data.product.pdfPrice + data.product.audioPrice}
+										</span>
+										<span class="text-green-600 font-medium">
+											Save KSh {getSavings()}!
+										</span>
 									</div>
 								{/if}
 							</div>
 						</div>
 
-						<!-- Cart Message -->
 						{#if cartMessage}
 							<div class="text-sm font-medium {cartMessage.startsWith('✓') ? 'text-green-600' : 'text-destructive'}">
 								{cartMessage}
@@ -416,7 +382,7 @@
 							<button
 								onclick={addToCart}
 								disabled={addingToCart}
-								class="w-full px-6 py-3 {isSummary ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-primary/90'} text-white font-semibold rounded-lg transition-colors shadow-lg disabled:opacity-50"
+								class="w-full px-6 py-3 {selectedFormat === 'SUMMARY' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-primary/90'} text-white font-semibold rounded-lg transition-colors shadow-lg disabled:opacity-50"
 							>
 								{addingToCart ? "Adding..." : "Add to Cart"}
 							</button>
@@ -428,7 +394,6 @@
 							</a>
 						</div>
 
-						<!-- Features -->
 						<div class="pt-4 border-t border-border space-y-2 text-sm text-muted-foreground">
 							<div class="flex items-center gap-2">
 								<Check class="w-5 h-5 text-primary" />
@@ -442,9 +407,9 @@
 								<Check class="w-5 h-5 text-primary" />
 								<span>Secure M-Pesa payment</span>
 							</div>
-							{#if isSummary}
+							{#if selectedFormat === 'SUMMARY'}
 								<div class="flex items-center gap-2">
-									<Check class="w-5 h-5 text-primary" />
+									<Check class="w-5 h-5 text-amber-600" />
 									<span class="font-medium text-amber-600 dark:text-amber-400">Learn in 15-20 minutes</span>
 								</div>
 							{/if}
@@ -455,7 +420,6 @@
 		</div>
 	</section>
 
-	<!-- Related Products -->
 	{#if data.relatedProducts.length > 0}
 		<section class="py-12 md:py-16">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -468,8 +432,8 @@
 							class="group bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-all"
 						>
 							<div class="aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden">
-								<img 
-									src={publicUrl + product.coverImage} 
+								<img 
+									src={publicUrl + product.coverImage} 
 									alt="{product.title} cover"
 									class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
 								/>
@@ -482,7 +446,7 @@
 									{product.author}
 								</p>
 								<div class="text-sm md:text-base font-bold text-primary">
-									KSh {product.type === "AUDIOBOOK" ? product.audioPrice : product.pdfPrice}
+									KSh {product.type.includes("AUDIOBOOK") ? product.audioPrice : product.pdfPrice}
 								</div>
 							</div>
 						</a>

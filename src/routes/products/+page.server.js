@@ -1,10 +1,5 @@
-/**
- * @fileoverview Products listing page - load all active products
- */
+// src/routes/products/+page.server.js
 
-import { prisma } from "$lib/server/prisma.js";
-
-/** @type {import('./$types').PageServerLoad} */
 export async function load({ url }) {
   const searchQuery = url.searchParams.get("q") || "";
   const categorySlug = url.searchParams.get("category") || "";
@@ -22,7 +17,12 @@ export async function load({ url }) {
         { description: { contains: searchQuery, mode: "insensitive" } },
       ],
     }),
-    ...(type && { type }),
+    // FIXED: type is now an array, use 'has' operator
+    ...(type && {
+      type: {
+        has: type  // Check if array contains the type
+      }
+    }),
     ...(categorySlug && {
       categories: {
         some: {
@@ -32,7 +32,6 @@ export async function load({ url }) {
     }),
   };
 
-  // Get products with pagination
   const [products, totalCount, categories] = await Promise.all([
     prisma.product.findMany({
       where,
