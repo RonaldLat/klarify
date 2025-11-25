@@ -129,6 +129,17 @@ model Product {
   cartItems        CartItem[]
   categories       Category[]    @relation("CategoryToProduct")
 
+ // NEW: Free/Discount fields
+  isFree          Boolean @default(false)
+  freeUntil       DateTime? // Make product free until this date
+  discountPercent Int?    // e.g., 50 for 50% off
+  discountAmount  Int?    // Fixed amount off in KSh
+  discountUntil   DateTime? // Discount expires after this date
+  // Promotional fields
+  limitedOffer    Boolean @default(false) // Show "Limited Time" badge
+  offerText       String? // e.g., "LAUNCH SPECIAL", "WEEKEND DEAL"
+  
+
   @@index([slug])
   @@index([featured])
 }
