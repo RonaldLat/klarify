@@ -12,6 +12,7 @@
   <!-- <link rel="icon" href="/favicon/favicon.png" type="image/png"> -->
 	<title>Klarify - Audiobooks & Ebooks</title>
 	<meta name="description" content="Access thousands of audiobooks and ebooks" />
+<script defer src="https://cloud.umami.is/script.js" data-website-id="18a7694f-7644-4fc4-9e46-08ff780a00bb"></script>
 </svelte:head>
 
 <div class="min-h-screen bg-background">
