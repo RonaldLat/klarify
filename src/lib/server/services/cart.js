@@ -1,13 +1,19 @@
-/**
- * @fileoverview Cart service - manages shopping cart operations
- */
+// src/lib/server/services/cart.js
 
 import { prisma } from "$lib/server/prisma.js";
+import { calculatePrice } from "$lib/utils/pricing.js";
+
+/**
+ * Get actual price for cart item (handles free products and discounts)
+ */
+function getItemActualPrice(item) {
+	const pricing = calculatePrice(item.product, item.format);
+	return pricing.finalPrice; // This will be 0 for free products
+}
 
 /**
  * Get user's cart with items
- * @param {string} userId
- * @returns {Promise<Object>}
+ * UPDATED: Now calculates actual prices considering free/discounted products
  */
 export async function getCart(userId) {
 	const cartItems = await prisma.cartItem.findMany({
@@ -24,13 +30,10 @@ export async function getCart(userId) {
 		}
 	});
 
-	// Calculate totals
+	// Calculate totals using actual prices (including free products)
 	const subtotal = cartItems.reduce((sum, item) => {
-		const price = 
-			item.format === "BUNDLE" ? (item.product.bundlePrice || 0) :
-			item.format === "AUDIO" ? item.product.audioPrice :
-			item.product.pdfPrice;
-		return sum + price;
+		const actualPrice = getItemActualPrice(item);
+		return sum + actualPrice;
 	}, 0);
 
 	return {
@@ -43,10 +46,6 @@ export async function getCart(userId) {
 
 /**
  * Add item to cart
- * @param {string} userId
- * @param {string} productId
- * @param {string} format - "PDF" | "AUDIO" | "BUNDLE"
- * @returns {Promise<Object>}
  */
 export async function addToCart(userId, productId, format) {
 	// Check if item already exists
@@ -90,9 +89,6 @@ export async function addToCart(userId, productId, format) {
 
 /**
  * Remove item from cart
- * @param {string} userId
- * @param {string} cartItemId
- * @returns {Promise<Object>}
  */
 export async function removeFromCart(userId, cartItemId) {
 	try {
@@ -111,8 +107,6 @@ export async function removeFromCart(userId, cartItemId) {
 
 /**
  * Clear user's cart
- * @param {string} userId
- * @returns {Promise<void>}
  */
 export async function clearCart(userId) {
 	await prisma.cartItem.deleteMany({
@@ -122,8 +116,6 @@ export async function clearCart(userId) {
 
 /**
  * Get cart item count for header
- * @param {string} userId
- * @returns {Promise<number>}
  */
 export async function getCartCount(userId) {
 	return await prisma.cartItem.count({

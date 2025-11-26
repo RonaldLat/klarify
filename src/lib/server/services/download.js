@@ -1,17 +1,13 @@
 /**
  * @fileoverview Download service - handles secure file downloads
- * UPDATED: Now supports SUMMARY type products
+ * UPDATED: Removed download limits, only requires authentication
  */
 import { prisma } from "$lib/server/prisma.js";
 import { getPurchaseDownloadUrls } from "$lib/server/services/r2.js";
 
 /**
  * Generate secure download links for a purchase
- * @param {string} purchaseId
- * @param {string} userId
- * @param {string} ipAddress
- * @param {string} userAgent
- * @returns {Promise<{success: boolean, urls?: Object, error?: string}>}
+ * UPDATED: No download count limit, only authentication required
  */
 export async function generateDownloadLinks(
   purchaseId,
@@ -40,35 +36,25 @@ export async function generateDownloadLinks(
       return { success: false, error: "Payment not completed" };
     }
 
-    // Check expiration
-    if (new Date() > new Date(purchase.expiresAt)) {
-      return { success: false, error: "Download period expired (48 hours)" };
-    }
-
-    // Check download limit
-    if (purchase.downloadCount >= purchase.maxDownloads) {
-      return {
-        success: false,
-        error: `Download limit reached (${purchase.maxDownloads} downloads)`,
-      };
-    }
+    // REMOVED: Download count check
+    // REMOVED: Expiration check (downloads never expire)
 
     // Log product info for debugging
     console.log('🔍 Generating download URLs for product:', purchase.product.slug);
     console.log('📦 Product type:', purchase.product.type);
     
-    // CHANGE #1: Pass product type to R2 service (3rd parameter)
+    // Generate download URLs
     const urlsResult = await getPurchaseDownloadUrls(
       purchase.product.slug,
       purchase.format,
-      purchase.product.type  // ← ADDED THIS LINE
+      purchase.product.type
     );
 
     if (!urlsResult.success) {
       return { success: false, error: "Failed to generate download links" };
     }
 
-    // Record download attempt
+    // Record download attempt (always, no limit)
     await prisma.download.create({
       data: {
         purchaseId: purchase.id,
@@ -77,7 +63,7 @@ export async function generateDownloadLinks(
       },
     });
 
-    // Increment download count
+    // Increment download count (for analytics only, not enforced)
     await prisma.purchase.update({
       where: { id: purchase.id },
       data: {
@@ -85,7 +71,6 @@ export async function generateDownloadLinks(
       },
     });
 
-    // CHANGE #2: Include product type in response
     return {
       success: true,
       urls: urlsResult.urls,
@@ -93,9 +78,7 @@ export async function generateDownloadLinks(
         id: purchase.id,
         format: purchase.format,
         downloadCount: purchase.downloadCount + 1,
-        maxDownloads: purchase.maxDownloads,
-        expiresAt: purchase.expiresAt,
-        productType: purchase.product.type,  // ← ADDED THIS LINE
+        productType: purchase.product.type,
       },
     };
   } catch (error) {
@@ -109,8 +92,6 @@ export async function generateDownloadLinks(
 
 /**
  * Get user's library (completed purchases)
- * @param {string} userId
- * @returns {Promise<Array>}
  */
 export async function getUserLibrary(userId) {
   return await prisma.purchase.findMany({
@@ -128,7 +109,7 @@ export async function getUserLibrary(userId) {
         orderBy: {
           downloadedAt: "desc",
         },
-        take: 1, // Get most recent download
+        take: 1,
       },
     },
     orderBy: {
@@ -139,26 +120,19 @@ export async function getUserLibrary(userId) {
 
 /**
  * Check if download is available
- * @param {Object} purchase
- * @returns {Object}
+ * UPDATED: Always available for completed purchases
  */
 export function getDownloadStatus(purchase) {
-  const now = new Date();
-  const expired = now > new Date(purchase.expiresAt);
-  const limitReached = purchase.downloadCount >= purchase.maxDownloads;
-  const canDownload =
-    !expired && !limitReached && purchase.paymentStatus === "COMPLETED";
+  const canDownload = purchase.paymentStatus === "COMPLETED";
 
   return {
     canDownload,
-    expired,
-    limitReached,
-    downloadsRemaining: Math.max(
-      0,
-      purchase.maxDownloads - purchase.downloadCount,
-    ),
-    expiresAt: purchase.expiresAt,
+    expired: false, // Never expires
+    limitReached: false, // No limit
+    downloadsRemaining: 100, // Unlimited
+    expiresAt: null,
     downloadCount: purchase.downloadCount,
-    maxDownloads: purchase.maxDownloads,
+    // maxDownloads: null, // No max
+    maxDownloads: 100, // No max
   };
 }

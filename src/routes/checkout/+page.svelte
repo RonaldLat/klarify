@@ -1,7 +1,9 @@
 <script>
 	import { enhance } from "$app/forms";
-	import { goto } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
 	import { onMount } from "svelte";
+	import { toast } from 'svelte-sonner';
+	import { calculatePrice } from '$lib/utils/pricing';
 
 	let { data } = $props();
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
@@ -10,21 +12,34 @@
 	let error = $state("");
 	let Paystack = $state(null);
 	let paystackPopup = $state(null);
+	
+	// Check if cart is all free
+	const isFreeCheckout = $derived(data.cart.total === 0);
 
-	// Load Paystack only on client side
+	// Load Paystack only if needed (not for free checkout)
 	onMount(async () => {
-		try {
-			const PaystackModule = await import('@paystack/inline-js');
-			Paystack = PaystackModule.default;
-			paystackPopup = new Paystack();
-		} catch (err) {
-			console.error('Failed to load Paystack:', err);
-			error = "Payment system failed to load. Please refresh the page.";
+		if (!isFreeCheckout) {
+			try {
+				const PaystackModule = await import('@paystack/inline-js');
+				Paystack = PaystackModule.default;
+				paystackPopup = new Paystack();
+			} catch (err) {
+				console.error('Failed to load Paystack:', err);
+				error = "Payment system failed to load. Please refresh the page.";
+			}
 		}
 	});
 
 	/**
-	 * Initialize Paystack payment and open popup
+	 * Get actual price for cart item
+	 */
+	function getItemPrice(item) {
+		const pricing = calculatePrice(item.product, item.format);
+		return pricing.finalPrice;
+	}
+
+	/**
+	 * Handle checkout submission
 	 */
 	const handleCheckout = () => {
 		return async ({ result }) => {
@@ -35,12 +50,21 @@
 				openPaystackPopup(result.data);
 			} else if (result.type === "failure") {
 				error = result.data?.error || "Checkout failed";
+				toast.error('Checkout Failed', {
+					description: error
+				});
+			} else if (result.type === "redirect") {
+				// Free checkout - show success toast
+				toast.success('Success! 🎉', {
+					description: 'Your free items are now in your library!',
+					duration: 3000
+				});
 			}
 		};
 	};
 
 	/**
-	 * Open Paystack payment popup using InlineJS NPM package
+	 * Open Paystack payment popup
 	 */
 	function openPaystackPopup(paymentData) {
 		if (!paystackPopup) {
@@ -57,39 +81,35 @@
 				ref: paymentData.reference,
 				
 				onSuccess: (transaction) => {
-					console.log('Payment successful:', transaction);
-					// Redirect to verification page with reference
+					toast.success('Payment Successful!', {
+						description: 'Redirecting to your library...'
+					});
 					window.location.href = `/checkout/verify?reference=${transaction.reference}`;
-				},
-				
-				onLoad: (response) => {
-					console.log('Payment popup loaded:', response);
 				},
 				
 				onCancel: () => {
 					error = "Payment was cancelled";
 					processing = false;
+					toast.error('Payment Cancelled', {
+						description: 'You can retry or modify your cart'
+					});
 				},
 				
 				onError: (err) => {
-					console.error('Payment error:', err);
 					error = err.message || "Payment failed";
 					processing = false;
+					toast.error('Payment Failed', {
+						description: error
+					});
 				}
 			});
 		} catch (err) {
-			console.error('Paystack checkout error:', err);
 			error = "Payment system error. Please try again.";
 			processing = false;
+			toast.error('Error', {
+				description: error
+			});
 		}
-	}
-
-	function getItemPrice(item) {
-		if (item.format === "BUNDLE") {
-			return item.product.bundlePrice || (item.product.pdfPrice + item.product.audioPrice);
-		}
-		if (item.format === "AUDIO") return item.product.audioPrice;
-		return item.product.pdfPrice;
 	}
 </script>
 
@@ -121,11 +141,13 @@
 							<span class="text-foreground font-medium">{data.user.email}</span>
 						</div>
 					</div>
-					<div class="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-						<p class="text-sm text-muted-foreground">
-							📱 You'll enter your M-Pesa number in the Paystack payment window
-						</p>
-					</div>
+					{#if !isFreeCheckout}
+						<div class="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+							<p class="text-sm text-muted-foreground">
+								📱 You'll enter your M-Pesa number in the Paystack payment window
+							</p>
+						</div>
+					{/if}
 				</div>
 
 				<!-- Order Items -->
@@ -133,7 +155,9 @@
 					<h2 class="text-xl font-semibold text-foreground mb-4">Order Items</h2>
 					<div class="space-y-4">
 						{#each data.cart.items as item}
-							<div class="flex gap-4 pb-4 border-b border-border last:border-0 last:pb-0">
+							{@const itemPrice = getItemPrice(item)}
+							
+							<div class="flex gap-4 pb-4 border-b border-border last:border-0 last:pb-0 {itemPrice === 0 ? 'bg-green-50 dark:bg-green-950/20 -mx-2 px-2 rounded' : ''}">
 								<!-- Product Image -->
 								<div class="flex-shrink-0">
 									<div class="w-16 h-20 bg-muted rounded overflow-hidden">
@@ -143,12 +167,6 @@
 												alt={item.product.title}
 												class="w-full h-full object-cover"
 											/>
-										{:else}
-											<div class="w-full h-full flex items-center justify-center">
-												<svg class="w-6 h-6 text-muted-foreground opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-												</svg>
-											</div>
 										{/if}
 									</div>
 								</div>
@@ -157,14 +175,23 @@
 								<div class="flex-1 min-w-0">
 									<h3 class="font-semibold text-foreground line-clamp-1">{item.product.title}</h3>
 									<p class="text-sm text-muted-foreground mb-1">{item.product.author}</p>
-									<span class="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
-										{item.format === "BUNDLE" ? "PDF + Audio" : item.format}
-									</span>
+									<div class="flex items-center gap-2">
+										<span class="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
+											{item.format === "BUNDLE" ? "PDF + Audio" : item.format}
+										</span>
+										{#if itemPrice === 0}
+											<span class="text-xs px-2 py-1 bg-green-500 text-white rounded font-bold">
+												FREE
+											</span>
+										{/if}
+									</div>
 								</div>
 
 								<!-- Price -->
 								<div class="text-right">
-									<div class="font-bold text-foreground">KSh {getItemPrice(item)}</div>
+									<div class="font-bold {itemPrice === 0 ? 'text-green-600' : 'text-foreground'}">
+										{itemPrice === 0 ? 'FREE' : `KSh ${itemPrice}`}
+									</div>
 								</div>
 							</div>
 						{/each}
@@ -180,7 +207,13 @@
 					<div class="space-y-3 mb-6">
 						<div class="flex justify-between text-foreground">
 							<span>Subtotal ({data.cart.itemCount} items)</span>
-							<span class="font-medium">KSh {data.cart.subtotal}</span>
+							<span class="font-medium">
+								{#if data.cart.subtotal === 0}
+									FREE
+								{:else}
+									KSh {data.cart.subtotal}
+								{/if}
+							</span>
 						</div>
 						<div class="flex justify-between text-muted-foreground text-sm">
 							<span>Processing Fee</span>
@@ -188,9 +221,23 @@
 						</div>
 						<div class="border-t border-border pt-3 flex justify-between text-xl font-bold">
 							<span class="text-foreground">Total</span>
-							<span class="text-primary">KSh {data.cart.total}</span>
+							<span class="{isFreeCheckout ? 'text-green-600' : 'text-primary'}">
+								{#if isFreeCheckout}
+									FREE! 🎁
+								{:else}
+									KSh {data.cart.total}
+								{/if}
+							</span>
 						</div>
 					</div>
+
+					{#if isFreeCheckout}
+						<div class="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+							<p class="text-sm text-green-800 dark:text-green-200 font-medium">
+								🎉 All items are free! Click below to add them to your library.
+							</p>
+						</div>
+					{/if}
 
 					<!-- Error Message -->
 					{#if error}
@@ -217,9 +264,15 @@
 						<button
 							type="submit"
 							disabled={processing}
-							class="w-full px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3 text-base"
+							class="w-full px-6 py-3 {isFreeCheckout ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'} text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-3 text-base shadow-lg"
 						>
-							{processing ? "Processing..." : `💳 Pay KSh ${data.cart.total}`}
+							{#if processing}
+								Processing...
+							{:else if isFreeCheckout}
+								🎁 Get Free Items
+							{:else}
+								💳 Pay KSh {data.cart.total}
+							{/if}
 						</button>
 					</form>
 
@@ -237,8 +290,16 @@
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 							</svg>
 							<div>
-								<div class="font-medium text-foreground mb-1">Secure Payment</div>
-								<p>Powered by Paystack. Supports M-Pesa, Cards, Bank Transfer & more.</p>
+								<div class="font-medium text-foreground mb-1">
+									{isFreeCheckout ? 'No Payment Required' : 'Secure Payment'}
+								</div>
+								<p>
+									{#if isFreeCheckout}
+										Free items are added to your library instantly.
+									{:else}
+										Powered by Paystack. Supports M-Pesa, Cards & more.
+									{/if}
+								</p>
 							</div>
 						</div>
 
@@ -248,7 +309,7 @@
 							</svg>
 							<div>
 								<div class="font-medium text-foreground mb-1">Instant Access</div>
-								<p>Download your purchases immediately after payment.</p>
+								<p>Download your purchases immediately after checkout.</p>
 							</div>
 						</div>
 					</div>

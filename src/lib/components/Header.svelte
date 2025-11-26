@@ -16,7 +16,8 @@
 		Book,
 		Headphones,
 		Zap,
-		Star
+		Star,
+		FileText
 	} from '@lucide/svelte';
 	import * as Sheet from "$lib/components/ui/sheet/index.js";
 	
@@ -38,17 +39,11 @@
 	let searchTimeout;
 	let searchInput;
 
-	/**
-	 * Handle logout
-	 */
 	async function handleLogout() {
 		loggingOut = true;
 		window.location.href = "/logout";
 	}
 
-	/**
-	 * Close menus when clicking outside
-	 */
 	function handleClickOutside(event) {
 		if (showUserMenu && !event.target.closest('.user-menu')) {
 			showUserMenu = false;
@@ -214,6 +209,12 @@
 						class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
 					>
 						Browse
+					</a>
+					<a 
+						href="/blog" 
+						class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+					>
+						Blog
 					</a>
 					<a 
 						href="/categories" 
@@ -526,6 +527,12 @@
 				<span>Browse</span>
 			</a>
 			
+			<a href="/blog" onclick={() => mobileMenuOpen = false}
+				class="flex items-center gap-3 px-4 py-3 hover:bg-accent rounded-lg transition-colors">
+				<FileText class="w-5 h-5" />
+				<span>Blog</span>
+			</a>
+			
 			<a href="/categories" onclick={() => mobileMenuOpen = false}
 				class="flex items-center gap-3 px-4 py-3 hover:bg-accent rounded-lg transition-colors">
 				<Grid3x3 class="w-5 h-5" />
@@ -547,8 +554,11 @@
 				
 				<div class="border-t border-border my-2"></div>
 				
-				<button onclick={handleLogout} disabled={loggingOut}
-					class="flex items-center gap-3 px-4 py-3 text-destructive hover:bg-accent rounded-lg transition-colors disabled:opacity-50 w-full">
+				<button
+					onclick={handleLogout}
+					disabled={loggingOut}
+					class="flex items-center gap-3 px-4 py-3 text-destructive hover:bg-accent rounded-lg transition-colors disabled:opacity-50 w-full text-left"
+				>
 					<LogOut class="w-5 h-5" />
 					<span>{loggingOut ? 'Logging out...' : 'Logout'}</span>
 				</button>
@@ -562,29 +572,10 @@
 				</a>
 				
 				<a href="/signup" onclick={() => mobileMenuOpen = false}
-					class="flex items-center gap-3 px-4 py-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors font-medium">
-					<span class="mx-auto">Sign Up</span>
+					class="flex items-center gap-3 px-4 py-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors font-semibold">
+					Sign Up
 				</a>
 			{/if}
 		</div>
 	</Sheet.Content>
 </Sheet.Root>
-
-<style>
-	.search-container ::-webkit-scrollbar {
-		width: 6px;
-	}
-	
-	.search-container ::-webkit-scrollbar-track {
-		background: transparent;
-	}
-	
-	.search-container ::-webkit-scrollbar-thumb {
-		background: hsl(var(--muted-foreground) / 0.3);
-		border-radius: 3px;
-	}
-	
-	input[type="search"]::-webkit-search-cancel-button {
-		display: none;
-	}
-</style>

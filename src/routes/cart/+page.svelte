@@ -1,6 +1,7 @@
 <script>
 	import { enhance } from "$app/forms";
 	import { invalidateAll } from "$app/navigation";
+	import { calculatePrice } from '$lib/utils/pricing';
 
 	let { data } = $props();
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
@@ -9,14 +10,27 @@
 	let clearingCart = $state(false);
 
 	/**
-	 * Get price for cart item
+	 * Get actual price for cart item (handles free/discounted products)
 	 */
 	function getItemPrice(item) {
-		if (item.format === "BUNDLE") {
-			return item.product.bundlePrice || (item.product.pdfPrice + item.product.audioPrice);
-		}
-		if (item.format === "AUDIO") return item.product.audioPrice;
-		return item.product.pdfPrice;
+		const pricing = calculatePrice(item.product, item.format);
+		return pricing.finalPrice;
+	}
+	
+	/**
+	 * Get original price for display
+	 */
+	function getItemOriginalPrice(item) {
+		const pricing = calculatePrice(item.product, item.format);
+		return pricing.originalPrice;
+	}
+	
+	/**
+	 * Check if item has discount
+	 */
+	function hasDiscount(item) {
+		const pricing = calculatePrice(item.product, item.format);
+		return pricing.discount > 0 || pricing.isFree;
 	}
 
 	/**
@@ -62,6 +76,9 @@
 				<h1 class="text-3xl md:text-4xl font-bold text-foreground mb-2">Shopping Cart</h1>
 				<p class="text-muted-foreground">
 					{data.cart.itemCount} {data.cart.itemCount === 1 ? "item" : "items"}
+					{#if data.cart.total === 0}
+						<span class="text-green-600 font-semibold ml-2">🎁 All Free!</span>
+					{/if}
 				</p>
 			</div>
 
@@ -99,13 +116,14 @@
 				<!-- Items List -->
 				<div class="lg:col-span-2 space-y-4">
 					{#each data.cart.items as item}
-						<div class="bg-card border border-border rounded-lg p-4 md:p-6">
+						{@const itemPrice = getItemPrice(item)}
+						{@const originalPrice = getItemOriginalPrice(item)}
+						{@const hasPriceDiscount = hasDiscount(item)}
+						
+						<div class="bg-card border border-border rounded-lg p-4 md:p-6 {itemPrice === 0 ? 'ring-2 ring-green-500/50 bg-green-50 dark:bg-green-950/20' : ''}">
 							<div class="flex gap-4">
 								<!-- Cover Image -->
-								<a
-									href="/products/{item.product.slug}"
-									class="flex-shrink-0"
-								>
+								<a href="/products/{item.product.slug}" class="flex-shrink-0">
 									<div class="w-20 md:w-24 aspect-[2/3] bg-muted rounded overflow-hidden">
 										{#if item.product.coverImage}
 											<img
@@ -125,10 +143,7 @@
 
 								<!-- Product Info -->
 								<div class="flex-1 min-w-0">
-									<a
-										href="/products/{item.product.slug}"
-										class="block group"
-									>
+									<a href="/products/{item.product.slug}" class="block group">
 										<h3 class="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">
 											{item.product.title}
 										</h3>
@@ -143,12 +158,42 @@
 										<span class="text-xs text-muted-foreground">
 											{item.product.type}
 										</span>
+										{#if itemPrice === 0}
+											<span class="text-xs px-2 py-1 bg-green-500 text-white rounded font-bold">
+												FREE
+											</span>
+										{/if}
 									</div>
 
 									<!-- Price & Remove -->
 									<div class="flex items-center justify-between">
-										<div class="text-lg font-bold text-primary">
-											KSh {getItemPrice(item)}
+										<div>
+											{#if itemPrice === 0}
+												<div class="text-lg font-bold text-green-600">
+													FREE
+												</div>
+												{#if originalPrice > 0}
+													<div class="text-xs text-muted-foreground line-through">
+														Was KSh {originalPrice}
+													</div>
+												{/if}
+											{:else if hasPriceDiscount}
+												<div class="flex items-center gap-2">
+													<div class="text-lg font-bold text-primary">
+														KSh {itemPrice}
+													</div>
+													<div class="text-sm text-muted-foreground line-through">
+														{originalPrice}
+													</div>
+												</div>
+												<div class="text-xs text-green-600 font-medium">
+													Save KSh {originalPrice - itemPrice}
+												</div>
+											{:else}
+												<div class="text-lg font-bold text-primary">
+													KSh {itemPrice}
+												</div>
+											{/if}
 										</div>
 
 										<form method="POST" action="?/remove" use:enhance={handleRemove(item.id)}>
@@ -176,7 +221,13 @@
 						<div class="space-y-3 mb-6">
 							<div class="flex justify-between text-foreground">
 								<span>Subtotal ({data.cart.itemCount} items)</span>
-								<span class="font-medium">KSh {data.cart.subtotal}</span>
+								<span class="font-medium">
+									{#if data.cart.subtotal === 0}
+										FREE
+									{:else}
+										KSh {data.cart.subtotal}
+									{/if}
+								</span>
 							</div>
 							<div class="flex justify-between text-muted-foreground text-sm">
 								<span>Processing Fee</span>
@@ -184,23 +235,23 @@
 							</div>
 							<div class="border-t border-border pt-3 flex justify-between text-xl font-bold">
 								<span class="text-foreground">Total</span>
-								<span class="text-primary">KSh {data.cart.total}</span>
+								<span class="{data.cart.total === 0 ? 'text-green-600' : 'text-primary'}">
+									{#if data.cart.total === 0}
+										FREE! 🎁
+									{:else}
+										KSh {data.cart.total}
+									{/if}
+								</span>
 							</div>
 						</div>
 
 						<a
 							href="/checkout"
-							class="block w-full px-6 py-3 bg-primary text-primary-foreground font-semibold text-center rounded-lg hover:bg-primary/90 transition-colors mb-3"
+							class="block w-full px-6 py-3 {data.cart.total === 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'} text-white font-semibold text-center rounded-lg transition-colors mb-3"
 						>
-							Proceed to Checkout
+							{data.cart.total === 0 ? '🎁 Get Free Items' : 'Proceed to Checkout'}
 						</a>
 						
-						{#if !data.user.phone}
-							<p class="text-xs text-center text-muted-foreground mb-3">
-								You'll be asked to provide your M-Pesa number at checkout
-							</p>
-						{/if}
-
 						<a
 							href="/products"
 							class="block w-full px-6 py-3 bg-secondary text-secondary-foreground font-medium text-center rounded-lg hover:bg-secondary/80 transition-colors"
@@ -220,13 +271,13 @@
 								<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 								</svg>
-								<span>3 downloads within 48 hours</span>
+								<span>Unlimited downloads</span>
 							</div>
 							<div class="flex items-center gap-2">
 								<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 								</svg>
-								<span>Secure M-Pesa payment</span>
+								<span>Secure payment</span>
 							</div>
 						</div>
 					</div>

@@ -2,9 +2,7 @@
 
 /**
  * Calculate the actual price after discounts
- * @param {Object} product - Product with pricing info
- * @param {string} format - "PDF", "AUDIO", "BUNDLE", or "SUMMARY"
- * @returns {Object} { originalPrice, finalPrice, discount, isFree, savings }
+ * UPDATED: Now properly handles free products
  */
 export function calculatePrice(product, format = 'PDF') {
   // Get base price for format
@@ -122,9 +120,12 @@ export function getPromotionalBadge(product) {
 }
 
 /**
- * Format time remaining for offer
+ * Format time remaining for offer (with seconds when < 1 hour)
+ * @param {Date|string} endDate - End date of offer
+ * @param {boolean} includeSeconds - Whether to show seconds (default: true for < 1 hour)
+ * @returns {string|null} Formatted time string or null if expired/no date
  */
-export function getTimeRemaining(endDate) {
+export function getTimeRemaining(endDate, includeSeconds = null) {
   if (!endDate) return null;
 
   const now = new Date();
@@ -135,8 +136,33 @@ export function getTimeRemaining(endDate) {
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-  if (days > 0) return `${days}d ${hours}h left`;
-  if (hours > 0) return `${hours}h left`;
-  return 'Ending soon';
+  // Auto-include seconds if less than 1 hour (unless explicitly disabled)
+  const showSeconds = includeSeconds !== null ? includeSeconds : (days === 0 && hours === 0);
+
+  if (days > 0) {
+    return `${days}d ${hours}h left`;
+  }
+  if (hours > 0) {
+    return showSeconds ? `${hours}h ${minutes}m ${seconds}s` : `${hours}h ${minutes}m`;
+  }
+  if (minutes > 0) {
+    return showSeconds ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+
+  return showSeconds ? `${seconds}s left` : 'Ending soon';
+}
+
+/**
+ * Calculate bundle savings
+ */
+export function calculateBundleSavings(product) {
+  if (!product.pdfPrice || !product.audioPrice) return 0;
+
+  const fullPrice = product.pdfPrice + product.audioPrice;
+  const bundlePrice = product.bundlePrice || fullPrice;
+
+  return fullPrice - bundlePrice;
 }
