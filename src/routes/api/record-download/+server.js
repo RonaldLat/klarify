@@ -1,5 +1,8 @@
+// src/routes/api/record-download/+server.js
 import { json, error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/prisma.js';
+
+const MAX_DOWNLOADS = 100;
 
 export async function POST({ request, locals, getClientAddress }) {
   if (!locals.user) {
@@ -8,7 +11,7 @@ export async function POST({ request, locals, getClientAddress }) {
 
   try {
     const { purchaseId } = await request.json();
-
+    
     if (!purchaseId) {
       throw error(400, 'Missing purchase ID');
     }
@@ -19,9 +22,13 @@ export async function POST({ request, locals, getClientAddress }) {
         id: true,
         userId: true,
         downloadCount: true,
-        maxDownloads: true,
-        expiresAt: true,
         paymentStatus: true,
+        product: {
+          select: {
+            title: true,
+            slug: true
+          }
+        }
       },
     });
 
@@ -30,28 +37,22 @@ export async function POST({ request, locals, getClientAddress }) {
     }
 
     if (purchase.userId !== locals.user.id) {
-      throw error(403, 'Unauthorized');
-    }
-
-    const now = new Date();
-    const expired = now > new Date(purchase.expiresAt);
-    const limitReached = purchase.downloadCount >= purchase.maxDownloads;
-
-    if (expired) {
-      throw error(400, 'Download period expired');
-    }
-
-    if (limitReached) {
-      throw error(400, 'Download limit reached');
+      throw error(403, 'Unauthorized - Not your purchase');
     }
 
     if (purchase.paymentStatus !== 'COMPLETED') {
       throw error(400, 'Payment not completed');
     }
 
+    // Check download limit
+    if (purchase.downloadCount >= MAX_DOWNLOADS) {
+      throw error(400, `Download limit reached (${MAX_DOWNLOADS} downloads)`);
+    }
+
     const ipAddress = getClientAddress();
     const userAgent = request.headers.get('user-agent') || 'Unknown';
 
+    // Record download
     await prisma.download.create({
       data: {
         purchaseId: purchase.id,
@@ -60,6 +61,7 @@ export async function POST({ request, locals, getClientAddress }) {
       },
     });
 
+    // Increment count
     const updatedPurchase = await prisma.purchase.update({
       where: { id: purchase.id },
       data: {
@@ -67,25 +69,24 @@ export async function POST({ request, locals, getClientAddress }) {
       },
       select: {
         downloadCount: true,
-        maxDownloads: true,
       },
     });
 
-    console.log(`✅ Recorded download for purchase ${purchaseId}`);
+    console.log(`✅ Download recorded: ${purchase.product.slug} (${updatedPurchase.downloadCount}/${MAX_DOWNLOADS})`);
 
     return json({
       success: true,
       downloadCount: updatedPurchase.downloadCount,
-      downloadsRemaining: updatedPurchase.maxDownloads - updatedPurchase.downloadCount,
+      downloadsRemaining: MAX_DOWNLOADS - updatedPurchase.downloadCount,
+      maxDownloads: MAX_DOWNLOADS,
     });
-
   } catch (err) {
-    console.error('Record download error:', err);
-
+    console.error('❌ Record download error:', err);
+    
     if (err.status) {
       throw err;
     }
-
+    
     throw error(500, 'Failed to record download');
   }
 }

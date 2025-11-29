@@ -1,9 +1,11 @@
 /**
  * @fileoverview Download service - handles secure file downloads
- * UPDATED: Removed download limits, only requires authentication
+ * UPDATED: 100 download limit to prevent abuse
  */
 import { prisma } from "$lib/server/prisma.js";
 import { getPurchaseDownloadUrls } from "$lib/server/services/r2.js";
+
+const MAX_DOWNLOADS = 100; // Prevent abuse while being generous
 
 /**
  * Generate secure download links for a purchase
@@ -28,7 +30,7 @@ export async function generateDownloadLinks(
 
     // Verify ownership
     if (purchase.userId !== userId) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "Unauthorized - This is not your purchase" };
     }
 
     // Check payment status
@@ -36,13 +38,14 @@ export async function generateDownloadLinks(
       return { success: false, error: "Payment not completed" };
     }
 
-    // REMOVED: Download count check
-    // REMOVED: Expiration check (downloads never expire)
+    // Check download limit (100 downloads)
+    if (purchase.downloadCount >= MAX_DOWNLOADS) {
+      return {
+        success: false,
+        error: `Download limit reached (${MAX_DOWNLOADS} downloads). Please contact support if you need more.`,
+      };
+    }
 
-    // Log product info for debugging
-    console.log('🔍 Generating download URLs for product:', purchase.product.slug);
-    console.log('📦 Product type:', purchase.product.type);
-    
     // Generate download URLs
     const urlsResult = await getPurchaseDownloadUrls(
       purchase.product.slug,
@@ -65,11 +68,15 @@ export async function generateDownloadLinks(
 
     // Increment download count (for analytics only, not enforced)
     await prisma.purchase.update({
+    const updated = await prisma.purchase.update({
       where: { id: purchase.id },
       data: {
         downloadCount: { increment: 1 },
       },
     });
+
+    // CHANGE #2: Include product type in response
+    console.log(`✅ Download recorded for ${purchase.product.slug} (${updated.downloadCount}/${MAX_DOWNLOADS})`);
 
     return {
       success: true,
@@ -120,19 +127,19 @@ export async function getUserLibrary(userId) {
 
 /**
  * Check if download is available
- * UPDATED: Always available for completed purchases
+ * UPDATED: 100 download limit
  */
 export function getDownloadStatus(purchase) {
-  const canDownload = purchase.paymentStatus === "COMPLETED";
+  const canDownload = purchase.paymentStatus === "COMPLETED" && purchase.downloadCount < MAX_DOWNLOADS;
+  const limitReached = purchase.downloadCount >= MAX_DOWNLOADS;
 
   return {
     canDownload,
     expired: false, // Never expires
-    limitReached: false, // No limit
-    downloadsRemaining: 100, // Unlimited
+    limitReached,
+    downloadsRemaining: Math.max(0, MAX_DOWNLOADS - purchase.downloadCount),
     expiresAt: null,
     downloadCount: purchase.downloadCount,
-    // maxDownloads: null, // No max
-    maxDownloads: 100, // No max
+    maxDownloads: MAX_DOWNLOADS,
   };
 }
