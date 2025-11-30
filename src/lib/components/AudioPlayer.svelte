@@ -1,18 +1,20 @@
 <!--
   @component
-  Audio Player with Chapter Navigation - FINAL WORKING VERSION
+  Audio Player with Chapter Navigation + Position Memory
   Location: src/lib/components/AudioPlayer.svelte
 -->
 <script>
   import { slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
+  import { onMount, onDestroy } from 'svelte';
 
   let {
     chapters = [],
     productTitle = "",
     productAuthor = "",
     coverImage = "",
-    publicUrl = ""
+    publicUrl = "",
+    productId = "" // NEW: Required for storing position
   } = $props();
  
   let currentChapterIndex = $state(0);
@@ -29,9 +31,96 @@
   let isDragging = $state(false);
   let dragTime = $state(0);
   let wasPlaying = false;
+  let saveInterval;
+  let hasRestoredPosition = $state(false);
  
   // Get current chapter
   let currentChapter = $derived(chapters[currentChapterIndex] || null);
+ 
+  // Storage key for this specific product
+  const STORAGE_KEY = `audiobook_position_${productId}`;
+  const SAVE_INTERVAL = 5000; // Save every 5 seconds
+ 
+  // Load saved position on mount
+  onMount(() => {
+    loadSavedPosition();
+    
+    // Auto-save position every 5 seconds while playing
+    saveInterval = setInterval(() => {
+      if (isPlaying && currentTime > 0) {
+        savePosition();
+      }
+    }, SAVE_INTERVAL);
+  });
+ 
+  // Save position before unmount
+  onDestroy(() => {
+    if (saveInterval) {
+      clearInterval(saveInterval);
+    }
+    if (currentTime > 0) {
+      savePosition();
+    }
+  });
+ 
+  /**
+   * Load saved position from localStorage
+   */
+  function loadSavedPosition() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        
+        // Restore chapter and position
+        if (data.chapterIndex !== undefined && data.chapterIndex < chapters.length) {
+          currentChapterIndex = data.chapterIndex;
+        }
+        
+        // Wait for audio element to be ready, then restore position
+        if (data.currentTime && audioElement) {
+          setTimeout(() => {
+            if (audioElement && duration > 0) {
+              audioElement.currentTime = Math.min(data.currentTime, duration);
+              hasRestoredPosition = true;
+            }
+          }, 500);
+        }
+        
+        console.log('📍 Restored position:', data);
+      }
+    } catch (error) {
+      console.error('Failed to load saved position:', error);
+    }
+  }
+ 
+  /**
+   * Save current position to localStorage
+   */
+  function savePosition() {
+    try {
+      const data = {
+        chapterIndex: currentChapterIndex,
+        currentTime: currentTime,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (error) {
+      console.error('Failed to save position:', error);
+    }
+  }
+ 
+  /**
+   * Clear saved position (called when audiobook finishes)
+   */
+  function clearSavedPosition() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      console.log('🗑️ Cleared saved position');
+    } catch (error) {
+      console.error('Failed to clear position:', error);
+    }
+  }
  
   // Format time (seconds to HH:MM:SS or MM:SS)
   function formatTime(seconds) {
@@ -68,6 +157,7 @@
   function playChapter(index) {
     currentChapterIndex = index;
     showChapterList = false;
+    hasRestoredPosition = false; // Reset flag when manually changing chapters
    
     setTimeout(() => {
       audioElement?.play();
@@ -178,6 +268,22 @@
  
   function handleDurationChange() {
     duration = audioElement.duration;
+    
+    // Restore position after duration is loaded
+    if (!hasRestoredPosition && duration > 0) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          if (data.currentTime && data.chapterIndex === currentChapterIndex) {
+            audioElement.currentTime = Math.min(data.currentTime, duration);
+            hasRestoredPosition = true;
+          }
+        } catch (error) {
+          console.error('Failed to restore position on duration change:', error);
+        }
+      }
+    }
   }
  
   function handlePlay() {
@@ -186,6 +292,7 @@
  
   function handlePause() {
     isPlaying = false;
+    savePosition(); // Save immediately when pausing
   }
  
   function handleEnded() {
@@ -193,6 +300,7 @@
       playChapter(currentChapterIndex + 1);
     } else {
       isPlaying = false;
+      clearSavedPosition(); // Clear position when audiobook finishes
     }
   }
  
@@ -230,7 +338,7 @@
     }
   }
  
-  // FIXED: Close chapter list when clicking outside (excludes toggle button)
+  // Close chapter list when clicking outside
   function handleClickOutside(e) {
     const toggleButton = e.target.closest('button[title="Chapter list"]');
     if (
@@ -255,16 +363,27 @@
   onclick={handleClickOutside}
 />
 
-<!-- MAIN CONTAINER: Top corners rounded only -->
+<!-- Audio element with event handlers -->
+{#if currentChapter}
+  <audio
+    bind:this={audioElement}
+    src={currentChapter.url}
+    ontimeupdate={handleTimeUpdate}
+    ondurationchange={handleDurationChange}
+    onplay={handlePlay}
+    onpause={handlePause}
+    onended={handleEnded}
+    preload="metadata"
+  ></audio>
+{/if}
+
+<!-- MAIN CONTAINER -->
 <div
   class="audio-player"
   style="
     background-color: var(--color-card);
     border: 1px solid var(--color-border);
-    border-top-left-radius: var(--radius-lg);
-    border-top-right-radius: var(--radius-lg);
-    border-bottom-left-radius: var(--radius-lg);
-    border-bottom-right-radius: var(--radius-lg);
+    border-radius: var(--radius-lg);
     overflow: visible;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   "
@@ -273,7 +392,7 @@
   <div class="player-header" style="display: flex; gap: 1rem; padding: 1rem; border-bottom: 1px solid var(--color-border);">
     <div class="cover-art" style="width: 80px; height: 80px; background-color: var(--color-muted); border-radius: var(--radius-md); flex-shrink: 0; overflow: hidden;">
       {#if coverImage}
-        <img src="{publicUrl}{coverImage}" alt={productTitle} style="width:  100%; height: 100%; object-fit: cover;" />
+        <img src="{publicUrl}{coverImage}" alt={productTitle} style="width: 100%; height: 100%; object-fit: cover;" />
       {:else}
         <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
           <svg style="width: 2rem; height: 2rem; color: var(--color-muted-foreground);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -371,8 +490,6 @@
       onclick={togglePlay}
       disabled={!currentChapter}
       style="width: 3.5rem; height: 3.5rem; background-color: var(--color-primary); border-radius: 9999px; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s; border: none; cursor: pointer; color: var(--color-primary-foreground);"
-      onmouseenter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = 'var(--color-primary)')}
-      onmouseleave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary)'}
       class="play-btn"
       title={isPlaying ? 'Pause' : 'Play'}
     >
@@ -484,7 +601,7 @@
     </div>
   </div>
  
-  <!-- Chapter List: Smooth slide + bottom rounded corners -->
+  <!-- Chapter List -->
   {#if showChapterList}
     <div
       bind:this={chapterListContainer}
@@ -521,86 +638,27 @@
               {/if}
             </div>
             <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 0.875rem; font-weight: 500; color: var(--color-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{chapter.title}</div>
-              <div style="font-size: 0.75rem; color: var(--color-muted-foreground);">{formatSize(chapter.size)}</div>
+              <div style="font-size: 0.875rem; font-weight: 500; color: var(--color-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {chapter.title}
+              </div>
+              {#if chapter.size}
+                <div style="font-size: 0.75rem; color: var(--color-muted-foreground);">
+                  {formatSize(chapter.size)}
+                </div>
+              {/if}
             </div>
           </button>
         {/each}
       </div>
     </div>
   {/if}
- 
-  <!-- Hidden Audio Element -->
-  {#if currentChapter}
-    <!-- svelte-ignore a11y_media_has_caption -->
-    <audio
-      bind:this={audioElement}
-      src={currentChapter.url}
-      ontimeupdate={handleTimeUpdate}
-      ondurationchange={handleDurationChange}
-      onplay={handlePlay}
-      onpause={handlePause}
-      onended={handleEnded}
-      preload="metadata"
-    ></audio>
-  {/if}
 </div>
 
 <style>
-  /* Custom range slider styles */
-  input[type="range"].volume-slider {
-    appearance: none;
-    background-color: var(--color-secondary);
-    border-radius: 9999px;
-    height: 0.25rem;
-    cursor: pointer;
-  }
- 
-  input[type="range"].volume-slider::-webkit-slider-thumb {
-    appearance: none;
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 9999px;
-    background-color: var(--color-primary);
-    cursor: pointer;
-  }
- 
-  input[type="range"].volume-slider::-moz-range-thumb {
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 9999px;
-    background-color: var(--color-primary);
-    cursor: pointer;
-    border: 0;
-  }
- 
-  /* Progress bar hover effect */
   .progress-container:hover .progress-thumb {
     opacity: 1;
   }
- 
-  .progress-container:hover .progress-bar {
-    background-color: var(--color-primary);
-    filter: brightness(0.9);
-  }
- 
-  /* Button disabled state */
-  .control-btn:disabled,
-  .play-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
- 
-  .control-btn:disabled:hover {
-    background-color: transparent !important;
-  }
- 
-  /* Rotate icon animation */
-  svg.rotate {
-    transform: rotate(90deg);
-  }
- 
-  /* Pulse animation */
+  
   @keyframes pulse {
     0%, 100% {
       opacity: 1;
@@ -608,24 +666,5 @@
     50% {
       opacity: 0.5;
     }
-  }
- 
-  /* Smooth scrollbar for chapter list */
-  div[style*="max-height: 16rem"]::-webkit-scrollbar {
-    width: 0.5rem;
-  }
- 
-  div[style*="max-height: 16rem"]::-webkit-scrollbar-track {
-    background: var(--color-muted);
-    border-radius: var(--radius-sm);
-  }
- 
-  div[style*="max-height: 16rem"]::-webkit-scrollbar-thumb {
-    background: var(--color-muted-foreground);
-    border-radius: var(--radius-sm);
-  }
- 
-  div[style*="max-height: 16rem"]::-webkit-scrollbar-thumb:hover {
-    background: var(--color-foreground);
   }
 </style>

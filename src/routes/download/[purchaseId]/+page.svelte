@@ -371,6 +371,7 @@
 						productTitle={data.purchase.product.title}
 						productAuthor={data.purchase.product.author}
 						coverImage={data.purchase.product.coverImage}
+            productId={data.purchase.product.id}
 						{publicUrl}
 					/>
 				</div>

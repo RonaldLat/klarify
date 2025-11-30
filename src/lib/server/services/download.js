@@ -66,8 +66,7 @@ export async function generateDownloadLinks(
       },
     });
 
-    // Increment download count (for analytics only, not enforced)
-    await prisma.purchase.update({
+    // Increment download count
     const updated = await prisma.purchase.update({
       where: { id: purchase.id },
       data: {
@@ -75,7 +74,6 @@ export async function generateDownloadLinks(
       },
     });
 
-    // CHANGE #2: Include product type in response
     console.log(`✅ Download recorded for ${purchase.product.slug} (${updated.downloadCount}/${MAX_DOWNLOADS})`);
 
     return {
@@ -84,7 +82,9 @@ export async function generateDownloadLinks(
       purchase: {
         id: purchase.id,
         format: purchase.format,
-        downloadCount: purchase.downloadCount + 1,
+        downloadCount: updated.downloadCount,
+        maxDownloads: MAX_DOWNLOADS,
+        expiresAt: purchase.expiresAt,
         productType: purchase.product.type,
       },
     };
