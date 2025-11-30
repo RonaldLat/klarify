@@ -8,6 +8,7 @@
     Zap,
     Package,
     Star,
+    Clock,
   } from "@lucide/svelte";
   import {
     calculatePrice,
@@ -65,6 +66,26 @@
   // Timer for countdown - update every second
   let timeLeft = $state(null);
   let intervalId = null;
+
+  // Format duration helper
+  function formatDuration(seconds) {
+    if (!seconds) return null;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  }
+
+  // Get duration based on selected format - FIXED: removed .by()
+  const displayDuration = $derived.by(() => {
+    if (selectedFormat === 'SUMMARY' && product.summaryDuration) {
+      return formatDuration(product.summaryDuration);
+    }
+    if ((selectedFormat === 'AUDIO' || selectedFormat === 'BUNDLE') && product.duration) {
+      return formatDuration(product.duration);
+    }
+    return null;
+  });
 
   $effect(() => {
     const endDate = product.discountUntil || product.freeUntil;
@@ -223,6 +244,14 @@
         </button>
       {/each}
     </div>
+
+    <!-- Duration Display - FIXED: removed () -->
+    {#if displayDuration}
+      <div class="flex items-center gap-1.5 mb-2 text-xs text-muted-foreground">
+        <Clock class="w-3.5 h-3.5" />
+        <span>{displayDuration}</span>
+      </div>
+    {/if}
 
     <!-- Rating -->
     {#if product.rating > 0}

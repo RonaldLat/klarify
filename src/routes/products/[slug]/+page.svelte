@@ -128,11 +128,15 @@
 		return `${minutes}m`;
 	}
 	
+	// Get duration based on selected format
 	const displayDuration = $derived.by(() => {
 		if (selectedFormat === 'SUMMARY' && data.product.summaryDuration) {
 			return data.product.summaryDuration;
 		}
-		return data.product.duration;
+		if ((selectedFormat === 'AUDIO' || selectedFormat === 'BUNDLE') && data.product.duration) {
+			return data.product.duration;
+		}
+		return null;
 	});
 
 	// Get pricing
@@ -231,8 +235,7 @@
 						<span class="text-foreground truncate">{data.product.title}</span>
 					</nav>
 
-					<!-- Product Info (rest of your existing code...) -->
-					<!-- Your existing product details code remains the same -->
+					<!-- Product Info -->
 					<div>
 						<h1 class="text-3xl md:text-4xl font-bold text-foreground mb-2">
 							{data.product.title}
@@ -242,12 +245,15 @@
 							by <span class="text-foreground font-medium">{data.product.author}</span>
 						</p>
 
-						<!-- Downloads counter -->
-						<div class="flex items-center gap-4 text-sm text-muted-foreground">
-							<div class="flex items-center gap-1">
+						<!-- Metadata row -->
+						<div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+							<!-- Downloads -->
+							<div class="flex items-center gap-1.5">
 								<Download class="w-4 h-4" />
 								<span>{data.product.downloads.toLocaleString()} downloads</span>
 							</div>
+							
+							<!-- Rating -->
 							{#if data.product.rating > 0}
 								<div class="flex items-center gap-1">
 									<Star class="w-5 h-5 text-yellow-500 fill-current" />
@@ -255,10 +261,183 @@
 									<span>({data.product.reviewCount})</span>
 								</div>
 							{/if}
+							
+							<!-- Duration (NEW) - Changes based on selected format -->
+							{#if displayDuration}
+								<div class="flex items-center gap-1.5 font-medium text-primary">
+									<Clock class="w-4 h-4" />
+									<span>{formatDuration(displayDuration)}</span>
+									{#if selectedFormat === 'SUMMARY'}
+										<span class="text-xs text-muted-foreground">(Quick Listen)</span>
+									{/if}
+								</div>
+							{/if}
 						</div>
 					</div>
 
-					<!-- Rest of your product page code -->
+					<!-- Format Selector with Duration Info -->
+					<div class="bg-secondary/30 rounded-lg p-4">
+						<h3 class="text-sm font-semibold mb-3">Choose Format:</h3>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							{#if isEbook}
+								<button
+									onclick={() => selectedFormat = "PDF"}
+									class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all
+										{selectedFormat === 'PDF' 
+											? 'border-primary bg-primary/10' 
+											: 'border-border bg-card hover:border-primary/50'}"
+								>
+									<BookOpen class="w-5 h-5 {selectedFormat === 'PDF' ? 'text-primary' : 'text-muted-foreground'}" />
+									<div class="flex-1 text-left">
+										<div class="font-medium">PDF eBook</div>
+										<div class="text-xs text-muted-foreground">Read on any device</div>
+									</div>
+									{#if selectedFormat === 'PDF'}
+										<Check class="w-5 h-5 text-primary" />
+									{/if}
+								</button>
+							{/if}
+
+							{#if isAudiobook}
+								<button
+									onclick={() => selectedFormat = "AUDIO"}
+									class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all
+										{selectedFormat === 'AUDIO' 
+											? 'border-primary bg-primary/10' 
+											: 'border-border bg-card hover:border-primary/50'}"
+								>
+									<Headphones class="w-5 h-5 {selectedFormat === 'AUDIO' ? 'text-primary' : 'text-muted-foreground'}" />
+									<div class="flex-1 text-left">
+										<div class="font-medium">Full Audiobook</div>
+										<div class="text-xs text-muted-foreground">
+											{#if data.product.duration}
+												{formatDuration(data.product.duration)} • Listen anywhere
+											{:else}
+												Listen anywhere
+											{/if}
+										</div>
+									</div>
+									{#if selectedFormat === 'AUDIO'}
+										<Check class="w-5 h-5 text-primary" />
+									{/if}
+								</button>
+							{/if}
+
+							{#if isSummary}
+								<button
+									onclick={() => selectedFormat = "SUMMARY"}
+									class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all
+										{selectedFormat === 'SUMMARY' 
+											? 'border-amber-500 bg-amber-500/10' 
+											: 'border-border bg-card hover:border-amber-500/50'}"
+								>
+									<Zap class="w-5 h-5 {selectedFormat === 'SUMMARY' ? 'text-amber-500' : 'text-muted-foreground'}" />
+									<div class="flex-1 text-left">
+										<div class="font-medium">Audio Summary</div>
+										<div class="text-xs text-muted-foreground">
+											{#if data.product.summaryDuration}
+												{formatDuration(data.product.summaryDuration)} • Key insights
+											{:else}
+												15-20 min • Key insights
+											{/if}
+										</div>
+									</div>
+									{#if selectedFormat === 'SUMMARY'}
+										<Check class="w-5 h-5 text-amber-500" />
+									{/if}
+								</button>
+							{/if}
+
+							{#if canBuyBundle}
+								<button
+									onclick={() => selectedFormat = "BUNDLE"}
+									class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all sm:col-span-2
+										{selectedFormat === 'BUNDLE' 
+											? 'border-green-500 bg-green-500/10' 
+											: 'border-border bg-card hover:border-green-500/50'}"
+								>
+									<Package class="w-5 h-5 {selectedFormat === 'BUNDLE' ? 'text-green-500' : 'text-muted-foreground'}" />
+									<div class="flex-1 text-left">
+										<div class="font-medium">Bundle (PDF + Audio)</div>
+										<div class="text-xs text-muted-foreground">
+											{#if data.product.duration}
+												{formatDuration(data.product.duration)} audio • Save KSh {getSavings()}
+											{:else}
+												Save KSh {getSavings()}
+											{/if}
+										</div>
+									</div>
+									{#if selectedFormat === 'BUNDLE'}
+										<Check class="w-5 h-5 text-green-500" />
+									{/if}
+								</button>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Purchase Section -->
+					<div class="bg-card border border-border rounded-lg p-6 space-y-4">
+						<!-- Price -->
+						<div>
+							{#if pricing.isFree}
+								<div class="text-3xl font-bold text-green-600">FREE!</div>
+								{#if pricing.originalPrice > 0}
+									<div class="text-sm text-muted-foreground line-through">
+										Was KSh {pricing.originalPrice}
+									</div>
+								{/if}
+							{:else if pricing.discount > 0}
+								<div class="flex items-baseline gap-3">
+									<div class="text-3xl font-bold text-primary">
+										KSh {pricing.finalPrice}
+									</div>
+									<div class="text-lg text-muted-foreground line-through">
+										KSh {pricing.originalPrice}
+									</div>
+								</div>
+								<div class="text-sm text-green-600 font-medium mt-1">
+									Save KSh {pricing.savings} ({pricing.discount}% off)
+								</div>
+							{:else}
+								<div class="text-3xl font-bold text-primary">
+									KSh {getPrice()}
+								</div>
+							{/if}
+
+							{#if getSavings() > 0 && !pricing.discount}
+								<p class="text-sm text-green-600 font-medium mt-1">
+									Save KSh {getSavings()} with bundle
+								</p>
+							{/if}
+						</div>
+
+						<!-- Add to Cart Button -->
+						<button
+							onclick={addToCart}
+							disabled={addingToCart || !selectedFormat}
+							class="w-full py-4 px-6 font-bold rounded-lg transition-all shadow-lg text-lg
+								{pricing.isFree
+									? 'bg-green-600 hover:bg-green-700 text-white'
+									: 'bg-primary hover:bg-primary/90 text-primary-foreground'}
+								disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{#if addingToCart}
+								Adding to Cart...
+							{:else}
+								{pricing.isFree ? '🎁 Get Free' : '🛒 Add to Cart'}
+							{/if}
+						</button>
+
+						{#if cartMessage}
+							<p class="text-sm text-center text-muted-foreground">{cartMessage}</p>
+						{/if}
+					</div>
+
+					<!-- Description -->
+					<div class="prose dark:prose-invert max-w-none">
+						<h2 class="text-2xl font-bold mb-4">About This {isSummary ? 'Summary' : 'Book'}</h2>
+						<p class="text-muted-foreground whitespace-pre-line">{data.product.description}</p>
+					</div>
 				</div>
 			</div>
 		</div>
