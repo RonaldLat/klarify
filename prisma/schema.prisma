@@ -25,10 +25,27 @@ model User {
   accounts      Account[]
   cartItems     CartItem[]
   sessions      Session[]
+  favorites Favorite[]
 
   @@index([email])
   @@index([phone])
   @@map("user")
+}
+
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("favorite")
 }
 
 model Session {
@@ -138,6 +155,7 @@ model Product {
   // Promotional fields
   limitedOffer    Boolean @default(false) // Show "Limited Time" badge
   offerText       String? // e.g., "LAUNCH SPECIAL", "WEEKEND DEAL"
+  favorites Favorite[]
   
 
   @@index([slug])

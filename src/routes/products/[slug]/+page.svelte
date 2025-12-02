@@ -35,7 +35,10 @@
 
 	let addingToCart = $state(false);
 	let cartMessage = $state("");
-	let isFavorite = $state(false);
+	
+	// NEW: Use server-side data for initial favorite state
+	let isFavorite = $state(data.isFavorite);
+	let togglingFavorite = $state(false);
 
 	function getPrice() {
 		if (selectedFormat === "SUMMARY") {
@@ -115,9 +118,48 @@
 		}
 	}
 
-	function toggleFavorite() {
-		isFavorite = !isFavorite;
-		toast.success(isFavorite ? 'Added to favorites' : 'Removed from favorites');
+	// NEW: Updated toggleFavorite with persistent storage
+	async function toggleFavorite() {
+		// Check if user is authenticated
+		if (!data.isAuthenticated) {
+			toast.error('Please login to save favorites');
+			window.location.href = '/login';
+			return;
+		}
+
+		if (togglingFavorite) return;
+		
+		togglingFavorite = true;
+		const previousState = isFavorite;
+		isFavorite = !isFavorite; // Optimistic update
+		
+		try {
+			const response = await fetch('/api/favorites', {
+				method: isFavorite ? 'POST' : 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ productId: data.product.id })
+			});
+			
+			if (!response.ok) {
+				throw new Error('Failed to update favorite');
+			}
+			
+			const result = await response.json();
+			
+			if (result.success) {
+				toast.success(isFavorite ? 'Added to favorites ❤️' : 'Removed from favorites');
+			} else {
+				// Revert on failure
+				isFavorite = previousState;
+				toast.error(result.error || 'Something went wrong');
+			}
+		} catch (error) {
+			console.error('Favorite toggle error:', error);
+			isFavorite = previousState; // Revert on error
+			toast.error('Failed to update favorite');
+		} finally {
+			togglingFavorite = false;
+		}
 	}
 
 	function formatDuration(seconds) {
@@ -175,10 +217,13 @@
 								</button>
 								<button
 									onclick={toggleFavorite}
-									class="p-2 bg-white/90 dark:bg-black/90 rounded-full shadow-lg hover:scale-110 transition-transform"
-									title="Add to favorites"
+									disabled={togglingFavorite}
+									class="p-2 bg-white/90 dark:bg-black/90 rounded-full shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+									title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 								>
-									<Heart class="w-5 h-5 {isFavorite ? 'fill-red-500 text-red-500' : ''}" />
+									<Heart 
+										class="w-5 h-5 transition-colors {isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'} {togglingFavorite ? 'animate-pulse' : ''}" 
+									/>
 								</button>
 							</div>
 							
@@ -214,10 +259,13 @@
 							</button>
 							<button
 								onclick={toggleFavorite}
-								class="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
-								title="Add to favorites"
+								disabled={togglingFavorite}
+								class="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 							>
-								<Heart class="w-5 h-5 {isFavorite ? 'fill-red-500 text-red-500' : ''}" />
+								<Heart 
+									class="w-5 h-5 transition-colors {isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'} {togglingFavorite ? 'animate-pulse' : ''}" 
+								/>
 							</button>
 						</div>
 					</div>
@@ -262,7 +310,7 @@
 								</div>
 							{/if}
 							
-							<!-- Duration (NEW) - Changes based on selected format -->
+							<!-- Duration - Changes based on selected format -->
 							{#if displayDuration}
 								<div class="flex items-center gap-1.5 font-medium text-primary">
 									<Clock class="w-4 h-4" />

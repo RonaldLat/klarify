@@ -1,6 +1,9 @@
-// src/routes/products/[slug]/+page.server.js
+// Update src/routes/products/[slug]/+page.server.js
 
-export async function load({ params }) {
+import { error } from '@sveltejs/kit';
+import { prisma } from '$lib/server/prisma.js';
+
+export async function load({ params, locals }) {
   const product = await prisma.product.findUnique({
     where: {
       slug: params.slug,
@@ -22,7 +25,6 @@ export async function load({ params }) {
         },
         take: 10
       }
-      // REMOVED: originalProduct and summaries relations
     }
   });
 
@@ -30,8 +32,21 @@ export async function load({ params }) {
     throw error(404, "Product not found");
   }
 
-  // Get related products (same categories)
-  // Don't exclude SUMMARY - let all types show
+  // Check if user has favorited this product
+  let isFavorite = false;
+  if (locals.user) {
+    const favorite = await prisma.favorite.findUnique({
+      where: {
+        userId_productId: {
+          userId: locals.user.id,
+          productId: product.id
+        }
+      }
+    });
+    isFavorite = !!favorite;
+  }
+
+  // Get related products
   const relatedProducts = await prisma.product.findMany({
     where: {
       active: true,
@@ -52,6 +67,8 @@ export async function load({ params }) {
 
   return {
     product,
-    relatedProducts
+    relatedProducts,
+    isFavorite,
+    isAuthenticated: !!locals.user
   };
 }
