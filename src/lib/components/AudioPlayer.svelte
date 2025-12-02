@@ -14,7 +14,7 @@
     productAuthor = "",
     coverImage = "",
     publicUrl = "",
-    productId = "" // NEW: Required for storing position
+    productId = "" // Required for storing position
   } = $props();
  
   let currentChapterIndex = $state(0);
