@@ -17,7 +17,8 @@
 		Headphones,
 		Zap,
 		Star,
-		FileText
+		FileText,
+		Heart // NEW: Added Heart icon
 	} from '@lucide/svelte';
 	import * as Sheet from "$lib/components/ui/sheet/index.js";
 	
@@ -223,6 +224,14 @@
 						Categories
 					</a>
 					{#if user}
+						<!-- NEW: Favorites Link - Desktop -->
+						<a 
+							href="/favorites" 
+							class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+						>
+							<Heart class="w-4 h-4" />
+							<span>Favorites</span>
+						</a>
 						<a 
 							href="/my-library" 
 							class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
@@ -434,6 +443,15 @@
 									</a>
 								{/if}
 
+								<!-- NEW: Favorites in Dropdown -->
+								<a
+									href="/favorites"
+									class="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+								>
+									<Heart class="w-4 h-4" />
+									Favorites
+								</a>
+
 								<a
 									href="/my-library"
 									class="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
@@ -540,6 +558,13 @@
 			</a>
 			
 			{#if user}
+				<!-- NEW: Favorites in Mobile Menu -->
+				<a href="/favorites" onclick={() => mobileMenuOpen = false}
+					class="flex items-center gap-3 px-4 py-3 hover:bg-accent rounded-lg transition-colors">
+					<Heart class="w-5 h-5" />
+					<span>Favorites</span>
+				</a>
+				
 				<a href="/my-library" onclick={() => mobileMenuOpen = false}
 					class="flex items-center gap-3 px-4 py-3 hover:bg-accent rounded-lg transition-colors">
 					<Library class="w-5 h-5" />
