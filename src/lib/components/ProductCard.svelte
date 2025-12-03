@@ -78,10 +78,13 @@
 
   // Get duration based on selected format - FIXED: removed .by()
   const displayDuration = $derived.by(() => {
-    if (selectedFormat === 'SUMMARY' && product.summaryDuration) {
+    if (selectedFormat === "SUMMARY" && product.summaryDuration) {
       return formatDuration(product.summaryDuration);
     }
-    if ((selectedFormat === 'AUDIO' || selectedFormat === 'BUNDLE') && product.duration) {
+    if (
+      (selectedFormat === "AUDIO" || selectedFormat === "BUNDLE") &&
+      product.duration
+    ) {
       return formatDuration(product.duration);
     }
     return null;
@@ -230,11 +233,11 @@
       {#each availableFormats() as format}
         <button
           onclick={(e) => handleFormatChange(e, format.type)}
-          class="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs
+          class=" flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs
 				transition-all duration-300 ease-in-out transform hover:scale-[1.03] active:scale-[0.98]
 				{selectedFormat === format.type
-            ? 'bg-slate-300 dark:bg-slate-200 text-slate-900 dark:text-slate-900 shadow-sm'
-            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}"
+            ? 'bg-slate-100 dark:bg-slate-200 text-slate-900 dark:text-slate-100 shadow-sm'
+            : 'bg-slate-50 dark:bg-slate-100 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}"
           title={format.label}
         >
           <svelte:component this={format.icon} class="w-3.5 h-3.5" />
