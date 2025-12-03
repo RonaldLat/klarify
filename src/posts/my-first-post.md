@@ -1,11 +1,11 @@
 ---
 title: "Welcome to Klarify Blog"
-description: "Discover book summaries, reading tips, and learning insights"
 date: "2024-01-20"
 author: "Klarify Team"
-readTime: "3 min read"
 tags: ["Announcement", "Reading"]
 featured: true
+excerpt: "Discover book summaries, reading tips, and learning insights"
+published: true
 layout: blog
 ---
 

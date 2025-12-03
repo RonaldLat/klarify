@@ -6,5 +6,5 @@
 </script>
 
 <BlogLayout {...data.metadata}>
-  <svelte:component this={data.content} />
+  <svelte:component  this={data.content} />
 </BlogLayout>
