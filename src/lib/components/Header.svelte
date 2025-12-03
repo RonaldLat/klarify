@@ -18,7 +18,7 @@
 		Zap,
 		Star,
 		FileText,
-		Heart // NEW: Added Heart icon
+		Heart
 	} from '@lucide/svelte';
 	import * as Sheet from "$lib/components/ui/sheet/index.js";
 	
@@ -203,7 +203,7 @@
 					</span>
 				</a>
 				
-				<!-- Desktop Nav -->
+				<!-- Desktop Nav - SIMPLIFIED: Only Browse link -->
 				<nav class="hidden lg:flex items-center gap-6 ml-4">
 					<a 
 						href="/products" 
@@ -211,34 +211,6 @@
 					>
 						Browse
 					</a>
-					<a 
-						href="/blog" 
-						class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
-					>
-						Blog
-					</a>
-					<a 
-						href="/categories" 
-						class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
-					>
-						Categories
-					</a>
-					{#if user}
-						<!-- NEW: Favorites Link - Desktop -->
-						<a 
-							href="/favorites" 
-							class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
-						>
-							<Heart class="w-4 h-4" />
-							<span>Favorites</span>
-						</a>
-						<a 
-							href="/my-library" 
-							class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
-						>
-							My Library
-						</a>
-					{/if}
 				</nav>
 			</div>
 
@@ -254,7 +226,7 @@
 						onkeydown={handleSearchKeydown}
 						onfocus={() => searchQuery.length >= 2 && (showSearchResults = true)}
 						type="search"
-						placeholder="Search..."
+						placeholder="Search books..."
 						class="w-full pl-8 md:pl-10 pr-8 md:pr-12 py-2 md:py-2.5 rounded-lg border border-input bg-background text-foreground text-sm md:text-base
 							focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
 							transition-all duration-200 placeholder:text-muted-foreground"
@@ -275,7 +247,7 @@
 					</div>
 				</div>
 				
-				<!-- Search Results Dropdown -->
+				<!-- Search Results Dropdown (kept same) -->
 				{#if showSearchResults && (searchResults.length > 0 || searchAuthors.length > 0)}
 					<div class="absolute z-50 w-full mt-2 top-full bg-card border border-border rounded-lg shadow-2xl overflow-hidden
 						animate-in fade-in slide-in-from-top-2 duration-200">
@@ -382,9 +354,20 @@
 				{/if}
 			</div>
 
-			<!-- Right: Cart + User Menu -->
-			<div class="flex items-center gap-2 flex-shrink-0">
+			<!-- Right: SIMPLIFIED - Icon Buttons Only -->
+			<div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
 				{#if user}
+					<!-- Favorites - Icon Only on Desktop -->
+					<a 
+						href="/favorites" 
+						class="hidden lg:block p-2 hover:bg-accent rounded-md transition-colors"
+						aria-label="Favorites"
+						title="Favorites"
+					>
+						<Heart class="w-5 h-5" />
+					</a>
+
+					<!-- Cart -->
 					<a 
 						href="/cart" 
 						class="relative p-2 hover:bg-accent rounded-md transition-colors"
@@ -399,20 +382,13 @@
 						{/if}
 					</a>
 
+					<!-- User Menu - Simplified on Desktop -->
 					<div class="relative user-menu hidden lg:block">
 						<button
 							onclick={() => showUserMenu = !showUserMenu}
-							class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors"
+							class="p-2 hover:bg-accent rounded-md transition-colors"
 							aria-label="User menu"
 						>
-							<div class="text-right">
-								<div class="text-sm font-medium text-foreground truncate max-w-[120px]">
-									{user.name}
-								</div>
-								<div class="text-xs text-muted-foreground">
-									{user.role === 'admin' ? 'Admin' : 'Customer'}
-								</div>
-							</div>
 							<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
 								<span class="text-sm font-semibold text-primary-foreground">
 									{user.name?.charAt(0).toUpperCase()}
@@ -423,6 +399,12 @@
 						{#if showUserMenu}
 							<div class="absolute right-0 mt-2 w-56 bg-card border border-border rounded-lg shadow-lg py-2 z-50
 								animate-in fade-in slide-in-from-top-2 duration-200">
+								<!-- User Info Header -->
+								<div class="px-4 py-3 border-b border-border">
+									<div class="text-sm font-medium text-foreground truncate">{user.name}</div>
+									<div class="text-xs text-muted-foreground truncate">{user.email}</div>
+								</div>
+
 								{#if !user.phone}
 									<a
 										href="/complete-profile"
@@ -443,7 +425,6 @@
 									</a>
 								{/if}
 
-								<!-- NEW: Favorites in Dropdown -->
 								<a
 									href="/favorites"
 									class="flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
@@ -484,7 +465,7 @@
 				{:else}
 					<a
 						href="/login"
-						class="hidden sm:block text-sm font-medium text-foreground hover:text-primary transition-colors"
+						class="hidden sm:block px-3 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
 					>
 						Login
 					</a>
@@ -500,7 +481,7 @@
 	</div>
 </header>
 
-<!-- Mobile Menu Sheet -->
+<!-- Mobile Menu Sheet (Kept same structure) -->
 <Sheet.Root bind:open={mobileMenuOpen}>
 	<Sheet.Content side="left" class="w-[280px] sm:w-[320px]">
 		<Sheet.Header>
@@ -558,7 +539,6 @@
 			</a>
 			
 			{#if user}
-				<!-- NEW: Favorites in Mobile Menu -->
 				<a href="/favorites" onclick={() => mobileMenuOpen = false}
 					class="flex items-center gap-3 px-4 py-3 hover:bg-accent rounded-lg transition-colors">
 					<Heart class="w-5 h-5" />
