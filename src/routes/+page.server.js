@@ -1,13 +1,87 @@
 // src/routes/+page.server.js
 /**
- * @fileoverview Home page server load - get featured products with better sorting
+ * @fileoverview Home page server load - get featured products with promotions
  */
 import { prisma } from "$lib/server/prisma.js";
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals }) {
+  const now = new Date();
+  
+  // Get FREE products (isFree = true and still valid)
+  const freeProducts = await prisma.product.findMany({
+    where: {
+      active: true,
+      isFree: true,
+      OR: [
+        { freeUntil: null }, // Free forever
+        { freeUntil: { gte: now } } // Free until date hasn't passed
+      ]
+    },
+    include: {
+      categories: true,
+    },
+    orderBy: [
+      { createdAt: "desc" } // Newest free products first
+    ],
+    take: 8,
+  });
+  
+  // Get DISCOUNTED products (active discounts)
+  const discountedProducts = await prisma.product.findMany({
+    where: {
+      active: true,
+      isFree: false, // Don't duplicate free products
+      OR: [
+        {
+          AND: [
+            { discountPercent: { gt: 0 } },
+            {
+              OR: [
+                { discountUntil: null }, // Discount forever
+                { discountUntil: { gte: now } } // Discount still valid
+              ]
+            }
+          ]
+        },
+        {
+          AND: [
+            { discountAmount: { gt: 0 } },
+            {
+              OR: [
+                { discountUntil: null },
+                { discountUntil: { gte: now } }
+              ]
+            }
+          ]
+        },
+        {
+          AND: [
+            { limitedOffer: true },
+            {
+              OR: [
+                { discountUntil: null },
+                { discountUntil: { gte: now } }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    include: {
+      categories: true,
+    },
+    orderBy: [
+      { discountPercent: "desc" }, // Highest discount first
+      { createdAt: "desc" }
+    ],
+    take: 8,
+  });
+  
+  // Combine promotional products (free + discounted)
+  const promotionalProducts = [...freeProducts, ...discountedProducts].slice(0, 8);
+  
   // Get featured products with proper ordering
-  // Prioritize: 1. Active promotions, 2. Recent best sellers, 3. Newest
   const featuredProducts = await prisma.product.findMany({
     where: {
       active: true,
@@ -17,18 +91,11 @@ export async function load({ locals }) {
       categories: true,
     },
     orderBy: [
-      { 
-        // Products with active promotions first
-        // promotionEndDate: 'desc' 
-      },
-      { 
-        // Then by publish date (newest first)
-        publishedAt: "desc" 
-      },
+      { publishedAt: "desc" }
     ],
-    take: 16, // Get more products to ensure we have enough after filtering
+    take: 16,
   });
-
+  
   // Get categories with product counts
   const categories = await prisma.category.findMany({
     include: {
@@ -42,7 +109,7 @@ export async function load({ locals }) {
     },
     orderBy: { name: "asc" },
   });
-
+  
   // Track page view if user is logged in
   if (locals.user) {
     try {
@@ -62,10 +129,11 @@ export async function load({ locals }) {
       // Don't block page load if tracking fails
     }
   }
-
+  
   return {
     user: locals.user,
     featuredProducts,
+    promotionalProducts, // NEW: Add promotional products
     categories,
   };
 }

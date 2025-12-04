@@ -6,15 +6,22 @@
 	let { data } = $props();
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
 	
-	// Separate products into promotional and featured
+	// Use promotional products from server if available, otherwise use hasActivePromotion filter
 	const promotionalProducts = $derived(
-		data.featuredProducts.filter(p => hasActivePromotion(p)).slice(0, 8)
+		data.promotionalProducts && data.promotionalProducts.length > 0
+			? data.promotionalProducts
+			: data.featuredProducts.filter(p => hasActivePromotion(p)).slice(0, 8)
 	);
 	
 	const displayProducts = $derived(
 		promotionalProducts.length > 0 
 			? promotionalProducts 
 			: data.featuredProducts.slice(0, 8)
+	);
+	
+	// Check if we have any free products to adjust messaging
+	const hasFreeProducts = $derived(
+		displayProducts.some(p => p.isFree) || false
 	);
 </script>
 
@@ -62,21 +69,21 @@
 			<!-- Single Trust Indicator -->
 			<div class="flex items-center justify-center gap-2 mb-8 text-sm text-muted-foreground">
 				<Shield class="w-4 h-4 text-green-600" />
-				<span>Used by 10+ Universities • Secure M-Pesa Payment</span>
+				<span>Used by 200+ people • Secure M-Pesa Payment</span>
 			</div>
 
 			<!-- Simple Stats -->
 			<div class="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
 				<div class="text-center">
-					<div class="text-3xl md:text-4xl font-bold text-primary mb-1">1000+</div>
+					<div class="text-2xl md:text-4xl font-bold text-primary mb-1">1000+</div>
 					<div class="text-sm text-muted-foreground">Books</div>
 				</div>
 				<div class="text-center border-x border-border">
-					<div class="text-3xl md:text-4xl font-bold text-green-600 mb-1">FREE</div>
+					<div class="text-2xl md:text-4xl font-bold text-green-600 mb-1">FREE</div>
 					<div class="text-sm text-muted-foreground">Start Here</div>
 				</div>
 				<div class="text-center">
-					<div class="text-3xl md:text-4xl font-bold text-primary mb-1">60s</div>
+					<div class="text-2xl md:text-4xl font-bold text-primary mb-1">60s</div>
 					<div class="text-sm text-muted-foreground">To Download</div>
 				</div>
 			</div>
@@ -88,16 +95,18 @@
 		<section class="py-12 md:py-16 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-y border-green-200 dark:border-green-800">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div class="text-center mb-8">
-					<div class="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white text-sm font-bold rounded-full mb-4">
-						<Sparkles class="w-4 h-4" />
-						FREE & DISCOUNTED
+					<div class="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white text-sm font-bold rounded-md mb-4">
+						<!-- <Sparkles class="w-4 h-4" /> -->
+						{hasFreeProducts ? 'FREE BOOKS AVAILABLE' : 'SPECIAL OFFERS'}
 					</div>
 					
 					<h2 class="text-3xl md:text-4xl font-bold text-foreground mb-3">
-						Start Here - No Payment Needed
+						{hasFreeProducts ? 'Start Here - No Payment Needed' : 'Limited Time Discounts'}
 					</h2>
 					<p class="text-lg text-muted-foreground max-w-2xl mx-auto">
-						Get these books completely free. No tricks, no credit card required.
+						{hasFreeProducts 
+							? 'Get these books completely free. No tricks, no credit card required.' 
+							: 'Great deals on popular books. Save big today.'}
 					</p>
 				</div>
 				
@@ -106,6 +115,19 @@
 						<ProductCard {product} {publicUrl} />
 					{/each}
 				</div>
+				
+				<!-- Show link to more free books if available -->
+				{#if hasFreeProducts}
+					<div class="text-center mt-8">
+						<a 
+							href="/products?filter=free"
+							class="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-semibold hover:underline"
+						>
+							View All Free Books
+							<ChevronRight class="w-4 h-4" />
+						</a>
+					</div>
+				{/if}
 			</div>
 		</section>
 	{/if}

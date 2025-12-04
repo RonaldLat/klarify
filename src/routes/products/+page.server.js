@@ -1,12 +1,17 @@
 // src/routes/products/+page.server.js
+import { prisma } from "$lib/server/prisma.js";
 
-export async function load({ url }) {
+/** @type {import('./$types').PageServerLoad} */
+export async function load({ url, locals }) {
+  const now = new Date();
+  
+  // Get query parameters
   const searchQuery = url.searchParams.get("q") || "";
-  const categorySlug = url.searchParams.get("category") || "";
-  const type = url.searchParams.get("type") || "";
-  const page = parseInt(url.searchParams.get("page") || "1");
-  const perPage = 12;
-
+  const categorySlug = url.searchParams.get("category");
+  const typeFilter = url.searchParams.get("type");
+  const sortBy = url.searchParams.get("sort") || "newest";
+  const filterBy = url.searchParams.get("filter"); // NEW: Get filter parameter
+  
   // Build where clause
   const where = {
     active: true,
@@ -17,12 +22,6 @@ export async function load({ url }) {
         { description: { contains: searchQuery, mode: "insensitive" } },
       ],
     }),
-    // FIXED: type is now an array, use 'has' operator
-    ...(type && {
-      type: {
-        has: type  // Check if array contains the type
-      }
-    }),
     ...(categorySlug && {
       categories: {
         some: {
@@ -30,34 +29,112 @@ export async function load({ url }) {
         },
       },
     }),
-  };
-
-  const [products, totalCount, categories] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: {
-        categories: true,
+    ...(typeFilter && {
+      type: {
+        has: typeFilter,
       },
-      orderBy: [{ featured: "desc" }, { publishedAt: "desc" }],
-      take: perPage,
-      skip: (page - 1) * perPage,
     }),
-    prisma.product.count({ where }),
-    prisma.category.findMany({
-      orderBy: { name: "asc" },
-    }),
-  ]);
-
-  const totalPages = Math.ceil(totalCount / perPage);
-
+  };
+  
+  // NEW: Add filter conditions
+  if (filterBy === "free") {
+    // Show only free products
+    where.isFree = true;
+    where.OR = [
+      { freeUntil: null }, // Free forever
+      { freeUntil: { gte: now } }, // Still free
+    ];
+  } else if (filterBy === "discounted") {
+    // Show only discounted products
+    where.isFree = false;
+    where.OR = [
+      {
+        AND: [
+          { discountPercent: { gt: 0 } },
+          {
+            OR: [
+              { discountUntil: null },
+              { discountUntil: { gte: now } },
+            ],
+          },
+        ],
+      },
+      {
+        AND: [
+          { discountAmount: { gt: 0 } },
+          {
+            OR: [
+              { discountUntil: null },
+              { discountUntil: { gte: now } },
+            ],
+          },
+        ],
+      },
+      {
+        AND: [
+          { limitedOffer: true },
+          {
+            OR: [
+              { discountUntil: null },
+              { discountUntil: { gte: now } },
+            ],
+          },
+        ],
+      },
+    ];
+  }
+  
+  // Build order by clause
+  let orderBy = [];
+  switch (sortBy) {
+    case "popular":
+      orderBy = [{ downloads: "desc" }, { rating: "desc" }];
+      break;
+    case "rating":
+      orderBy = [{ rating: "desc" }, { reviewCount: "desc" }];
+      break;
+    case "price-low":
+      orderBy = [{ pdfPrice: "asc" }];
+      break;
+    case "price-high":
+      orderBy = [{ pdfPrice: "desc" }];
+      break;
+    case "newest":
+    default:
+      orderBy = [{ publishedAt: "desc" }, { createdAt: "desc" }];
+  }
+  
+  // Get products
+  const products = await prisma.product.findMany({
+    where,
+    include: {
+      categories: true,
+    },
+    orderBy,
+  });
+  
+  // Get categories for filter sidebar
+  const categories = await prisma.category.findMany({
+    include: {
+      _count: {
+        select: {
+          products: {
+            where: { active: true },
+          },
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+  
   return {
+    user: locals.user,
     products,
     categories,
-    totalCount,
-    currentPage: page,
-    totalPages,
     searchQuery,
     categorySlug,
-    type,
+    typeFilter,
+    sortBy,
+    filterBy, // NEW: Return filter parameter
   };
 }

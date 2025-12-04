@@ -25,7 +25,7 @@
       show = true;
       currentIndex = (currentIndex + 1) % purchases.length;
       setTimeout(() => show = false, 5000);
-    }, 60000);
+    }, 90000);
   });
   
   const current = $derived(purchases[currentIndex]);

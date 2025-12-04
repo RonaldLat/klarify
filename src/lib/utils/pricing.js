@@ -88,7 +88,8 @@ export function getPromotionalBadge(product) {
     return {
       text: 'FREE',
       color: 'green',
-      icon: '🎁'
+      icon: ' '
+      // icon: '🎁'
     };
   }
 
@@ -96,7 +97,8 @@ export function getPromotionalBadge(product) {
     return {
       text: `${pricing.discount}% OFF`,
       color: 'red',
-      icon: '🔥'
+      icon: ' '
+      // icon: '🔥'
     };
   }
 
