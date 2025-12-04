@@ -1,6 +1,9 @@
 <script>
 	import Header from "$lib/components/Header.svelte";
   import { Toaster } from "$lib/components/ui/sonner/index.js";
+  import ExitIntentModal from '$lib/components/ExitIntentModal.svelte';
+  import RecentPurchaseToast from '$lib/components/RecentPurchaseToast.svelte';
+
 	import "../app.css";
 
 	let { children, data } = $props();
@@ -22,4 +25,6 @@
 		{@render children()}
 	</main>
 </div>
+<ExitIntentModal enabled={!data.user} />
+<RecentPurchaseToast />
 <Toaster />

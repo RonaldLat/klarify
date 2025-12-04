@@ -178,24 +178,10 @@
 		</div>
 	</div>
 	
-	<!-- Article Content -->
+	<!-- Article Content - FIXED: Proper typography classes -->
 	<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-		<div class="prose prose-lg dark:prose-invert max-w-none
-			prose-headings:font-bold prose-headings:text-foreground
-			prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-6
-			prose-h3:text-2xl prose-h3:mt-8 prose-h3:mb-4
-			prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:mb-6
-			prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-			prose-strong:text-foreground prose-strong:font-semibold
-			prose-ul:my-6 prose-ul:list-disc prose-ul:pl-6
-			prose-ol:my-6 prose-ol:list-decimal prose-ol:pl-6
-			prose-li:text-muted-foreground prose-li:my-2
-			prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground
-			prose-code:text-primary prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-			prose-pre:bg-muted prose-pre:border prose-pre:border-border
-			prose-img:rounded-lg prose-img:shadow-lg
-			prose-hr:border-border prose-hr:my-12"
-		>
+		<!-- CRITICAL: Add prose class directly to the content wrapper -->
+		<div class="prose prose-slate dark:prose-invert lg:prose-lg max-w-none">
 			<slot />
 		</div>
 	</div>
@@ -227,3 +213,94 @@
 		</div>
 	</div>
 </article>
+
+<style>
+	/* CRITICAL: Add these styles to ensure typography works */
+	:global(.prose) {
+		color: var(--color-foreground);
+	}
+	
+	:global(.prose h2) {
+		color: var(--color-foreground);
+		font-weight: 700;
+		font-size: 1.875rem;
+		margin-top: 3rem;
+		margin-bottom: 1.5rem;
+		line-height: 1.3;
+	}
+	
+	:global(.prose h3) {
+		color: var(--color-foreground);
+		font-weight: 600;
+		font-size: 1.5rem;
+		margin-top: 2rem;
+		margin-bottom: 1rem;
+	}
+	
+	:global(.prose p) {
+		color: var(--color-muted-foreground);
+		margin-bottom: 1.5rem;
+		line-height: 1.75;
+	}
+	
+	:global(.prose a) {
+		color: var(--color-primary);
+		text-decoration: none;
+	}
+	
+	:global(.prose a:hover) {
+		text-decoration: underline;
+	}
+	
+	:global(.prose strong) {
+		color: var(--color-foreground);
+		font-weight: 600;
+	}
+	
+	:global(.prose ul),
+	:global(.prose ol) {
+		margin: 1.5rem 0;
+		padding-left: 1.5rem;
+	}
+	
+	:global(.prose li) {
+		color: var(--color-muted-foreground);
+		margin: 0.5rem 0;
+	}
+	
+	:global(.prose blockquote) {
+		border-left: 4px solid var(--color-primary);
+		padding-left: 1rem;
+		font-style: italic;
+		color: var(--color-muted-foreground);
+		margin: 1.5rem 0;
+	}
+	
+	:global(.prose code) {
+		background-color: var(--color-muted);
+		color: var(--color-primary);
+		padding: 0.125rem 0.25rem;
+		border-radius: 0.25rem;
+		font-size: 0.875em;
+	}
+	
+	:global(.prose pre) {
+		background-color: var(--color-muted);
+		border: 1px solid var(--color-border);
+		border-radius: 0.5rem;
+		padding: 1rem;
+		overflow-x: auto;
+		margin: 1.5rem 0;
+	}
+	
+	:global(.prose img) {
+		border-radius: 0.5rem;
+		box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+		margin: 2rem 0;
+	}
+	
+	:global(.prose hr) {
+		border-color: var(--color-border);
+		margin: 3rem 0;
+	}
+</style>
