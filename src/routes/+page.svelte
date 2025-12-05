@@ -282,7 +282,7 @@
 						<ChevronRight class="w-5 h-5 text-muted-foreground group-open:rotate-90 transition-transform" />
 					</summary>
 					<p class="mt-3 text-muted-foreground text-sm">
-						Yes! You get up to 100 downloads per purchase. Download to all your devices.
+						Yes! You get unlimited downloads per purchase. Download to all your devices.
 					</p>
 				</details>
 				
