@@ -16,6 +16,11 @@
 	<title>Klarify - Audiobooks & Ebooks</title>
 	<meta name="description" content="Access thousands of audiobooks and ebooks" />
 <script defer src="https://cloud.umami.is/script.js" data-website-id="18a7694f-7644-4fc4-9e46-08ff780a00bb"></script>
+
+<!-- Cloudflare Web Analytics -->
+
+  <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "20aa49a6dc4f465398de9430c2037c94"}'></script>
+  <!-- End Cloudflare Web Analytics -->
 </svelte:head>
 
 <div class="min-h-screen bg-background">
