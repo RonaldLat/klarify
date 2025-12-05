@@ -63,10 +63,13 @@
   }
 
   const displayDuration = $derived.by(() => {
-    if (selectedFormat === 'SUMMARY' && product.summaryDuration) {
+    if (selectedFormat === "SUMMARY" && product.summaryDuration) {
       return formatDuration(product.summaryDuration);
     }
-    if ((selectedFormat === 'AUDIO' || selectedFormat === 'BUNDLE') && product.duration) {
+    if (
+      (selectedFormat === "AUDIO" || selectedFormat === "BUNDLE") &&
+      product.duration
+    ) {
       return formatDuration(product.duration);
     }
     return null;
@@ -147,7 +150,9 @@
         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
       />
     {:else}
-      <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+      <div
+        class="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50"
+      >
         <FileText class="w-16 h-16 text-muted-foreground/30" />
       </div>
     {/if}
@@ -157,9 +162,13 @@
       <div class="absolute top-2 left-2 z-10">
         <span
           class="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white rounded-lg shadow-lg
-          {badge.color === 'green' ? 'bg-green-600' : 
-           badge.color === 'red' ? 'bg-red-600' : 
-           badge.color === 'orange' ? 'bg-orange-600' : 'bg-purple-600'}"
+                    {badge.color === 'green'
+            ? 'bg-green-600'
+            : badge.color === 'red'
+              ? 'bg-red-600'
+              : badge.color === 'orange'
+                ? 'bg-orange-600'
+                : 'bg-purple-600'}"
         >
           <span>{badge.icon}</span>
           <span>{badge.text}</span>
@@ -170,7 +179,9 @@
     <!-- Featured Badge -->
     {#if product.featured}
       <div class="absolute top-2 right-2 z-10">
-        <span class="flex items-center gap-1 px-2 py-1 bg-yellow-500 text-white text-xs font-bold rounded-lg shadow-lg">
+        <span
+          class="flex items-center gap-1 px-2 py-1 bg-yellow-500 text-white text-xs font-bold rounded-lg shadow-lg"
+        >
           <Star class="w-3 h-3 fill-current" />
         </span>
       </div>
@@ -178,7 +189,9 @@
 
     <!-- Time Remaining -->
     {#if timeLeft}
-      <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent py-2 px-3">
+      <div
+        class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent py-2 px-3"
+      >
         <p class="text-white text-xs font-semibold text-center tracking-wide">
           ⏰ {timeLeft}
         </p>
@@ -189,7 +202,9 @@
   <!-- Content -->
   <div class="p-4 flex-1 flex flex-col">
     <!-- Title & Author -->
-    <h3 class="font-semibold text-sm md:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1 min-h-[2.5rem]">
+    <h3
+      class="font-semibold text-sm md:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1 min-h-[2.5rem]"
+    >
       {product.title}
     </h3>
 
@@ -197,20 +212,23 @@
       {product.author}
     </p>
 
-    <!-- Format Selector -->
+    <!-- Format Selector - Updated text color for consistency -->
     <div class="flex gap-1 mb-3">
       {#each availableFormats() as format}
         <button
           onclick={(e) => handleFormatChange(e, format.type)}
-          class="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs
-          transition-all duration-200 hover:scale-[1.03] active:scale-[0.98]
-          {selectedFormat === format.type
-            ? 'bg-slate-300 dark:bg-slate-200 text-slate-900 shadow-sm'
-            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}"
+          class="flex-1 flex items-center justify-center gap-1 p-1.5 rounded-md text-xs
+                    transition-all duration-200 hover:scale-[1.03] active:scale-[0.98]
+                    {selectedFormat === format.type
+            ? 'bg-slate-300 dark:bg-slate-200 text-slate-900 shadow-sm' // Selected: dark text on light background
+            : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700'}"
           title={format.label}
         >
           <svelte:component this={format.icon} class="w-3.5 h-3.5" />
-          <span class="hidden sm:inline text-[10px] font-medium">{format.label}</span>
+          <!-- The label is now only hidden on the smallest screens (up to sm) -->
+          <span class="hidden sm:inline text-[10px] font-medium"
+            >{format.label}</span
+          >
         </button>
       {/each}
     </div>
@@ -263,26 +281,30 @@
       {/if}
     </div>
 
-    <!-- Add to Cart Button -->
     <button
       onclick={handleAddToCart}
       disabled={addingToCart}
-      class="w-full flex items-center justify-center gap-2 py-2.5 px-4 font-semibold rounded-lg transition-all shadow-sm
-      {pricing.isFree ? 'bg-green-600 hover:bg-green-700 text-white' : 
-       'bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900'}
-      disabled:opacity-50 disabled:cursor-not-allowed
-      {showSuccess ? 'bg-green-600 text-white' : ''}"
+      class="w-full flex items-center justify-center gap-2 py-2.5 px-2 font-semibold rounded-lg transition-all shadow-sm
+            {pricing.isFree
+        ? 'bg-green-600 hover:bg-green-700 text-white'
+        : 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900'}
+            disabled:opacity-50 disabled:cursor-not-allowed
+            {showSuccess ? 'bg-green-600 text-white' : ''}"
     >
-      {#if showSuccess}
-        <span class="text-sm">✓ Added!</span>
-      {:else if addingToCart}
-        <span class="text-sm">Adding...</span>
-      {:else}
-        <ShoppingCart class="w-4 h-4" />
-        <span class="text-sm">
+      <!-- Show shopping cart icon only on larger screens -->
+      <ShoppingCart class="w-4 h-4 hidden sm:inline" />
+
+      <!-- Text CTA that shrinks on mobile for better fit -->
+      <span class="text-xs sm:text-sm whitespace-nowrap">
+        {#if showSuccess}
+          ✓ Added!
+        {:else if addingToCart}
+          Adding...
+        {:else}
+          <!-- Clear CTA for free vs paid products -->
           {pricing.isFree ? "Get Free" : "Add to Cart"}
-        </span>
-      {/if}
+        {/if}
+      </span>
     </button>
   </div>
 </a>

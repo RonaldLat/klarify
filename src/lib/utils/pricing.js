@@ -1,5 +1,3 @@
-// src/lib/utils/pricing.js
-
 /**
  * Calculate the actual price after discounts
  * UPDATED: Now properly handles free products
@@ -80,6 +78,7 @@ export function hasActivePromotion(product) {
 
 /**
  * Get promotional badge info
+ * UPDATED: Returns Lucide icon names (strings) instead of emojis.
  */
 export function getPromotionalBadge(product) {
   const pricing = calculatePrice(product, 'PDF');
@@ -88,8 +87,7 @@ export function getPromotionalBadge(product) {
     return {
       text: 'FREE',
       color: 'green',
-      icon: ' '
-      // icon: '🎁'
+      icon: 'Gift' // Lucide Gift icon
     };
   }
 
@@ -97,8 +95,7 @@ export function getPromotionalBadge(product) {
     return {
       text: `${pricing.discount}% OFF`,
       color: 'red',
-      icon: ' '
-      // icon: '🔥'
+      icon: 'Fire' // Lucide Fire icon
     };
   }
 
@@ -106,7 +103,7 @@ export function getPromotionalBadge(product) {
     return {
       text: `${pricing.discount}% OFF`,
       color: 'orange',
-      icon: '💰'
+      icon: 'Tag' // Lucide Tag icon
     };
   }
 
@@ -114,7 +111,7 @@ export function getPromotionalBadge(product) {
     return {
       text: product.offerText || 'LIMITED TIME',
       color: 'purple',
-      icon: '⚡'
+      icon: 'Zap' // Lucide Zap icon
     };
   }
 

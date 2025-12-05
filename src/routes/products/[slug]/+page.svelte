@@ -1,7 +1,8 @@
 <script>
 	import { invalidateAll } from "$app/navigation";
 	import { toast } from 'svelte-sonner';
-	import { Zap, Clock, BookOpen, Headphones, ChevronRight, Star, Check, Package, Share2, Heart, Download } from '@lucide/svelte';
+	// Added Gift and ShoppingCart to the imports
+	import { Zap, Clock, BookOpen, Headphones, ChevronRight, Star, Check, Package, Share2, Heart, Download, Gift, ShoppingCart } from '@lucide/svelte';
 	import { calculatePrice } from '$lib/utils/pricing';
 	import ProductCard from '$lib/components/ProductCard.svelte';
 	
@@ -189,8 +190,8 @@
 				<div class="md:col-span-2">
 					<div class="sticky top-24">
 						<div class="aspect-[2/3] bg-muted rounded-lg overflow-hidden shadow-lg relative group">
-							<img 
-								src={publicUrl + data.product.coverImage} 
+							<img 
+								src={publicUrl + data.product.coverImage} 
 								alt="{data.product.title} cover"
 								class="w-full h-full object-cover"
 							/>
@@ -210,8 +211,8 @@
 									class="p-2 bg-white/90 dark:bg-black/90 rounded-full shadow-lg hover:scale-110 transition-transform disabled:opacity-50"
 									title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 								>
-									<Heart 
-										class="w-5 h-5 transition-colors {isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'} {togglingFavorite ? 'animate-pulse' : ''}" 
+									<Heart 
+										class="w-5 h-5 transition-colors {isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'} {togglingFavorite ? 'animate-pulse' : ''}" 
 									/>
 								</button>
 							</div>
@@ -231,8 +232,9 @@
 									</span>
 								{/if}
 								{#if pricing.isFree}
+									<!-- UPDATED: Replaced 🎁 with Lucide Gift icon -->
 									<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm font-bold rounded-lg shadow-lg animate-pulse">
-										🎁 FREE
+										<Gift class="w-4 h-4" /> FREE
 									</span>
 								{/if}
 							</div>
@@ -253,8 +255,8 @@
 								class="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors disabled:opacity-50"
 								title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 							>
-								<Heart 
-									class="w-5 h-5 transition-colors {isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}" 
+								<Heart 
+									class="w-5 h-5 transition-colors {isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}" 
 								/>
 							</button>
 						</div>
@@ -348,8 +350,8 @@
 								<button
 									onclick={() => selectedFormat = "PDF"}
 									class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all
-										{selectedFormat === 'PDF' 
-											? 'border-primary bg-primary/10' 
+										{selectedFormat === 'PDF' 
+											? 'border-primary bg-primary/10' 
 											: 'border-border bg-card hover:border-primary/50'}"
 								>
 									<BookOpen class="w-5 h-5 {selectedFormat === 'PDF' ? 'text-primary' : 'text-muted-foreground'}" />
@@ -369,8 +371,8 @@
 								<button
 									onclick={() => selectedFormat = "AUDIO"}
 									class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all
-										{selectedFormat === 'AUDIO' 
-											? 'border-primary bg-primary/10' 
+										{selectedFormat === 'AUDIO' 
+											? 'border-primary bg-primary/10' 
 											: 'border-border bg-card hover:border-primary/50'}"
 								>
 									<Headphones class="w-5 h-5 {selectedFormat === 'AUDIO' ? 'text-primary' : 'text-muted-foreground'}" />
@@ -390,8 +392,8 @@
 								<button
 									onclick={() => selectedFormat = "SUMMARY"}
 									class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all
-										{selectedFormat === 'SUMMARY' 
-											? 'border-amber-500 bg-amber-500/10' 
+										{selectedFormat === 'SUMMARY' 
+											? 'border-amber-500 bg-amber-500/10' 
 											: 'border-border bg-card hover:border-amber-500/50'}"
 								>
 									<Zap class="w-5 h-5 {selectedFormat === 'SUMMARY' ? 'text-amber-500' : 'text-muted-foreground'}" />
@@ -411,8 +413,8 @@
 								<button
 									onclick={() => selectedFormat = "BUNDLE"}
 									class="flex items-center gap-3 p-4 rounded-lg border-2 transition-all sm:col-span-2
-										{selectedFormat === 'BUNDLE' 
-											? 'border-green-500 bg-green-500/10' 
+										{selectedFormat === 'BUNDLE' 
+											? 'border-green-500 bg-green-500/10' 
 											: 'border-border bg-card hover:border-green-500/50'}"
 								>
 									<Package class="w-5 h-5 {selectedFormat === 'BUNDLE' ? 'text-green-500' : 'text-muted-foreground'}" />
@@ -465,11 +467,11 @@
 							{/if}
 						</div>
 
-						<!-- Single CTA Button -->
+						<!-- Single CTA Button - UPDATED: Replaced 🎁 and 🛒 with icons -->
 						<button
 							onclick={addToCart}
 							disabled={addingToCart || !selectedFormat}
-							class="w-full py-4 px-6 font-bold rounded-lg transition-all shadow-lg text-lg
+							class="w-full py-4 px-6 font-bold rounded-lg transition-all shadow-lg text-lg flex items-center justify-center
 								{pricing.isFree
 									? 'bg-green-600 hover:bg-green-700 text-white'
 									: 'bg-primary hover:bg-primary/90 text-primary-foreground'}
@@ -477,8 +479,12 @@
 						>
 							{#if addingToCart}
 								Adding...
+							{:else if pricing.isFree}
+								<Gift class="w-6 h-6 mr-2" />
+								<span>Get Free Now</span>
 							{:else}
-								{pricing.isFree ? '🎁 Get Free Now' : '🛒 Add to Cart'}
+								<ShoppingCart class="w-6 h-6 mr-2" />
+								<span>Add to Cart</span>
 							{/if}
 						</button>
 
@@ -516,7 +522,7 @@
 				<div class="flex items-center justify-between mb-8">
 					<h2 class="text-2xl md:text-3xl font-bold text-foreground">You May Also Like</h2>
 					{#if data.product.categories.length > 0}
-						<a 
+						<a 
 							href="/products?category={data.product.categories[0].slug}"
 							class="hidden md:flex items-center gap-2 text-primary hover:underline font-medium"
 						>
