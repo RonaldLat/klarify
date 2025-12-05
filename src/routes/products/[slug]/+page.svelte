@@ -1,9 +1,9 @@
 <script>
 	import { invalidateAll } from "$app/navigation";
-	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { Zap, Clock, BookOpen, Headphones, ChevronRight, Star, Check, Package, Share2, Heart, Download } from '@lucide/svelte';
 	import { calculatePrice } from '$lib/utils/pricing';
+	import ProductCard from '$lib/components/ProductCard.svelte';
 	
 	const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
 
@@ -14,7 +14,7 @@
 	const isSummary = hasType('SUMMARY');
 	const isAudiobook = hasType('AUDIOBOOK');
 	const isEbook = hasType('EBOOK');
-	const canBuyBundle = isEbook && isAudiobook;
+	const canBuyBundle = isEbook && isAudiobook || isEbook && isSummary || isEbook && isSummary && isAudiobook;
 	
 	const BUNDLE_DISCOUNT_PERCENT = 15;
 	
@@ -34,9 +34,6 @@
 	);
 
 	let addingToCart = $state(false);
-	let cartMessage = $state("");
-	
-	// NEW: Use server-side data for initial favorite state
 	let isFavorite = $state(data.isFavorite);
 	let togglingFavorite = $state(false);
 
@@ -63,7 +60,6 @@
 		if (addingToCart || !selectedFormat) return;
 
 		addingToCart = true;
-		cartMessage = "";
 
 		try {
 			const response = await fetch("/api/cart", {
@@ -107,7 +103,6 @@
 				await navigator.share(shareData);
 				toast.success('Shared successfully!');
 			} else {
-				// Fallback: copy to clipboard
 				await navigator.clipboard.writeText(window.location.href);
 				toast.success('Link copied to clipboard!');
 			}
@@ -118,9 +113,7 @@
 		}
 	}
 
-	// NEW: Updated toggleFavorite with persistent storage
 	async function toggleFavorite() {
-		// Check if user is authenticated
 		if (!data.isAuthenticated) {
 			toast.error('Please login to save favorites');
 			window.location.href = '/login';
@@ -131,7 +124,7 @@
 		
 		togglingFavorite = true;
 		const previousState = isFavorite;
-		isFavorite = !isFavorite; // Optimistic update
+		isFavorite = !isFavorite;
 		
 		try {
 			const response = await fetch('/api/favorites', {
@@ -140,22 +133,19 @@
 				body: JSON.stringify({ productId: data.product.id })
 			});
 			
-			if (!response.ok) {
-				throw new Error('Failed to update favorite');
-			}
+			if (!response.ok) throw new Error('Failed to update favorite');
 			
 			const result = await response.json();
 			
 			if (result.success) {
 				toast.success(isFavorite ? 'Added to favorites ❤️' : 'Removed from favorites');
 			} else {
-				// Revert on failure
 				isFavorite = previousState;
 				toast.error(result.error || 'Something went wrong');
 			}
 		} catch (error) {
 			console.error('Favorite toggle error:', error);
-			isFavorite = previousState; // Revert on error
+			isFavorite = previousState;
 			toast.error('Failed to update favorite');
 		} finally {
 			togglingFavorite = false;
@@ -170,7 +160,6 @@
 		return `${minutes}m`;
 	}
 	
-	// Get duration based on selected format
 	const displayDuration = $derived.by(() => {
 		if (selectedFormat === 'SUMMARY' && data.product.summaryDuration) {
 			return data.product.summaryDuration;
@@ -181,7 +170,6 @@
 		return null;
 	});
 
-	// Get pricing
 	const pricing = $derived(calculatePrice(data.product, selectedFormat));
 </script>
 
@@ -197,6 +185,7 @@
 	<section class="bg-card border-b border-border">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
 			<div class="grid grid-cols-1 md:grid-cols-5 gap-8">
+				<!-- Left: Cover Image -->
 				<div class="md:col-span-2">
 					<div class="sticky top-24">
 						<div class="aspect-[2/3] bg-muted rounded-lg overflow-hidden shadow-lg relative group">
@@ -206,7 +195,7 @@
 								class="w-full h-full object-cover"
 							/>
 							
-							<!-- Action buttons overlay -->
+							<!-- Hover Action Buttons -->
 							<div class="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
 								<button
 									onclick={shareProduct}
@@ -218,7 +207,7 @@
 								<button
 									onclick={toggleFavorite}
 									disabled={togglingFavorite}
-									class="p-2 bg-white/90 dark:bg-black/90 rounded-full shadow-lg hover:scale-110 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+									class="p-2 bg-white/90 dark:bg-black/90 rounded-full shadow-lg hover:scale-110 transition-transform disabled:opacity-50"
 									title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 								>
 									<Heart 
@@ -227,6 +216,7 @@
 								</button>
 							</div>
 							
+							<!-- Badges -->
 							<div class="absolute top-4 left-4 flex flex-col gap-2">
 								{#if isSummary}
 									<span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-sm font-semibold rounded-lg shadow-lg">
@@ -248,8 +238,8 @@
 							</div>
 						</div>
 						
-						<!-- Quick actions -->
-						<div class="mt-4 flex gap-2">
+						<!-- Mobile Action Buttons -->
+						<div class="mt-4 flex gap-2 md:hidden">
 							<button
 								onclick={shareProduct}
 								class="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
@@ -260,17 +250,18 @@
 							<button
 								onclick={toggleFavorite}
 								disabled={togglingFavorite}
-								class="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								class="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors disabled:opacity-50"
 								title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 							>
 								<Heart 
-									class="w-5 h-5 transition-colors {isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'} {togglingFavorite ? 'animate-pulse' : ''}" 
+									class="w-5 h-5 transition-colors {isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}" 
 								/>
 							</button>
 						</div>
 					</div>
 				</div>
 
+				<!-- Right: Product Info -->
 				<div class="md:col-span-3 space-y-6">
 					<!-- Breadcrumbs -->
 					<nav class="flex items-center gap-2 text-sm text-muted-foreground">
@@ -283,7 +274,7 @@
 						<span class="text-foreground truncate">{data.product.title}</span>
 					</nav>
 
-					<!-- Product Info -->
+					<!-- Title & Author -->
 					<div>
 						<h1 class="text-3xl md:text-4xl font-bold text-foreground mb-2">
 							{data.product.title}
@@ -291,17 +282,20 @@
 						
 						<p class="text-lg text-muted-foreground mb-4">
 							by <span class="text-foreground font-medium">{data.product.author}</span>
+							{#if data.product.narrator}
+								<span class="hidden sm:inline text-sm">
+									• Narrated by <span class="text-foreground">{data.product.narrator}</span>
+								</span>
+							{/if}
 						</p>
 
-						<!-- Metadata row -->
+						<!-- Meta Info -->
 						<div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-							<!-- Downloads -->
 							<div class="flex items-center gap-1.5">
 								<Download class="w-4 h-4" />
 								<span>{data.product.downloads.toLocaleString()} downloads</span>
 							</div>
 							
-							<!-- Rating -->
 							{#if data.product.rating > 0}
 								<div class="flex items-center gap-1">
 									<Star class="w-5 h-5 text-yellow-500 fill-current" />
@@ -310,20 +304,43 @@
 								</div>
 							{/if}
 							
-							<!-- Duration - Changes based on selected format -->
 							{#if displayDuration}
 								<div class="flex items-center gap-1.5 font-medium text-primary">
 									<Clock class="w-4 h-4" />
 									<span>{formatDuration(displayDuration)}</span>
-									{#if selectedFormat === 'SUMMARY'}
-										<span class="text-xs text-muted-foreground">(Quick Listen)</span>
-									{/if}
+								</div>
+							{:else if data.product.pageCount}
+								<div class="flex items-center gap-1.5">
+									<BookOpen class="w-4 h-4" />
+									<span>{data.product.pageCount} pages</span>
 								</div>
 							{/if}
 						</div>
+
+						<!-- Key Takeaways Badge -->
+						{#if isSummary && data.product.keyTakeaways}
+							<div class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg">
+								<Zap class="w-5 h-5" />
+								<span class="font-medium">{data.product.keyTakeaways} Key Insights</span>
+							</div>
+						{/if}
 					</div>
 
-					<!-- Format Selector with Duration Info -->
+					<!-- Categories - Now Clickable -->
+					{#if data.product.categories.length > 0}
+						<div class="flex flex-wrap gap-2">
+							{#each data.product.categories as category}
+								<a
+									href="/products?category={category.slug}"
+									class="px-3 py-1.5 bg-secondary text-secondary-foreground text-sm rounded-md hover:bg-primary hover:text-primary-foreground transition-colors"
+								>
+									{category.icon || ''} {category.name}
+								</a>
+							{/each}
+						</div>
+					{/if}
+
+					<!-- Format Selector - Simplified -->
 					<div class="bg-secondary/30 rounded-lg p-4">
 						<h3 class="text-sm font-semibold mb-3">Choose Format:</h3>
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -338,7 +355,9 @@
 									<BookOpen class="w-5 h-5 {selectedFormat === 'PDF' ? 'text-primary' : 'text-muted-foreground'}" />
 									<div class="flex-1 text-left">
 										<div class="font-medium">PDF eBook</div>
-										<div class="text-xs text-muted-foreground">Read on any device</div>
+										<div class="text-xs text-muted-foreground">
+											{data.product.pageCount ? `${data.product.pageCount} pages` : 'Read anywhere'}
+										</div>
 									</div>
 									{#if selectedFormat === 'PDF'}
 										<Check class="w-5 h-5 text-primary" />
@@ -356,13 +375,9 @@
 								>
 									<Headphones class="w-5 h-5 {selectedFormat === 'AUDIO' ? 'text-primary' : 'text-muted-foreground'}" />
 									<div class="flex-1 text-left">
-										<div class="font-medium">Full Audiobook</div>
+										<div class="font-medium">Audiobook</div>
 										<div class="text-xs text-muted-foreground">
-											{#if data.product.duration}
-												{formatDuration(data.product.duration)} • Listen anywhere
-											{:else}
-												Listen anywhere
-											{/if}
+											{data.product.duration ? formatDuration(data.product.duration) : 'Listen anywhere'}
 										</div>
 									</div>
 									{#if selectedFormat === 'AUDIO'}
@@ -383,11 +398,7 @@
 									<div class="flex-1 text-left">
 										<div class="font-medium">Audio Summary</div>
 										<div class="text-xs text-muted-foreground">
-											{#if data.product.summaryDuration}
-												{formatDuration(data.product.summaryDuration)} • Key insights
-											{:else}
-												15-20 min • Key insights
-											{/if}
+											{data.product.summaryDuration ? formatDuration(data.product.summaryDuration) : '15-20 min'}
 										</div>
 									</div>
 									{#if selectedFormat === 'SUMMARY'}
@@ -408,11 +419,7 @@
 									<div class="flex-1 text-left">
 										<div class="font-medium">Bundle (PDF + Audio)</div>
 										<div class="text-xs text-muted-foreground">
-											{#if data.product.duration}
-												{formatDuration(data.product.duration)} audio • Save KSh {getSavings()}
-											{:else}
-												Save KSh {getSavings()}
-											{/if}
+											Save KSh {getSavings()} • Best Value
 										</div>
 									</div>
 									{#if selectedFormat === 'BUNDLE'}
@@ -423,9 +430,8 @@
 						</div>
 					</div>
 
-					<!-- Purchase Section -->
+					<!-- Purchase Section - Streamlined -->
 					<div class="bg-card border border-border rounded-lg p-6 space-y-4">
-						<!-- Price -->
 						<div>
 							{#if pricing.isFree}
 								<div class="text-3xl font-bold text-green-600">FREE!</div>
@@ -459,7 +465,7 @@
 							{/if}
 						</div>
 
-						<!-- Add to Cart Button -->
+						<!-- Single CTA Button -->
 						<button
 							onclick={addToCart}
 							disabled={addingToCart || !selectedFormat}
@@ -470,24 +476,62 @@
 								disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							{#if addingToCart}
-								Adding to Cart...
+								Adding...
 							{:else}
-								{pricing.isFree ? '🎁 Get Free' : '🛒 Add to Cart'}
+								{pricing.isFree ? '🎁 Get Free Now' : '🛒 Add to Cart'}
 							{/if}
 						</button>
 
-						{#if cartMessage}
-							<p class="text-sm text-center text-muted-foreground">{cartMessage}</p>
-						{/if}
+						<!-- Trust Badges -->
+						<div class="pt-4 border-t border-border space-y-2 text-sm text-muted-foreground">
+							<div class="flex items-center gap-2">
+								<Check class="w-4 h-4 text-primary" />
+								<span>Instant download</span>
+							</div>
+							<div class="flex items-center gap-2">
+								<Check class="w-4 h-4 text-primary" />
+								<span>Download up to 100 times</span>
+							</div>
+							<div class="flex items-center gap-2">
+								<Check class="w-4 h-4 text-primary" />
+								<span>Secure M-Pesa payment</span>
+							</div>
+						</div>
 					</div>
 
 					<!-- Description -->
 					<div class="prose dark:prose-invert max-w-none">
 						<h2 class="text-2xl font-bold mb-4">About This {isSummary ? 'Summary' : 'Book'}</h2>
-						<p class="text-muted-foreground whitespace-pre-line">{data.product.description}</p>
+						<p class="text-muted-foreground whitespace-pre-line leading-relaxed">{data.product.description}</p>
 					</div>
 				</div>
 			</div>
 		</div>
 	</section>
+
+	<!-- Related Products -->
+	{#if data.relatedProducts && data.relatedProducts.length > 0}
+		<section class="py-12 md:py-16 bg-muted/30">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex items-center justify-between mb-8">
+					<h2 class="text-2xl md:text-3xl font-bold text-foreground">You May Also Like</h2>
+					{#if data.product.categories.length > 0}
+						<a 
+							href="/products?category={data.product.categories[0].slug}"
+							class="hidden md:flex items-center gap-2 text-primary hover:underline font-medium"
+						>
+							View All {data.product.categories[0].name}
+							<ChevronRight class="w-4 h-4" />
+						</a>
+					{/if}
+				</div>
+				
+				<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+					{#each data.relatedProducts as product}
+						<ProductCard {product} {publicUrl} />
+					{/each}
+				</div>
+			</div>
+		</section>
+	{/if}
 </div>

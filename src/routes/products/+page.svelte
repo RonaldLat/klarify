@@ -3,6 +3,7 @@
   import { Book, Headphones, Zap, FileText } from "@lucide/svelte";
 
   let { data } = $props();
+  console.log(data)
   const publicUrl = "https://pub-ddafa2dcdc11430f8cec35c3cad0b062.r2.dev/";
 
   /**
